@@ -1,0 +1,142 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model user {
+  user_id      String   @id @default(cuid())
+  firebase_uid String   @unique
+  email        String   @unique
+  name         String?
+  password     String?
+  gender       String?
+  address      String?
+  phone_number String?  @unique
+  profile_img  String?
+  user_type    String?
+  description  Json?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  // One-to-many relation
+  swimming_courses swimming_course[]
+  request          request[]
+  attendance       attendance[]
+}
+
+model swimming_course {
+  course_id                String   @id @default(cuid())
+  course_name              String
+  coach_id                 String
+  coach                    user     @relation(fields: [coach_id], references: [user_id])
+  price_min                Int
+  price_max                Int
+  pool_type                String
+  location                 String
+  description              String
+  course_duration          Int
+  study_frequency          Int
+  days_study               Int
+  number_of_total_sessions Int
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+
+  // One-to-many relation
+  request request[]
+}
+
+model request {
+  request_id       String          @id @default(cuid())
+  course_id        String
+  Course           swimming_course @relation(fields: [course_id], references: [course_id])
+  student_id       String
+  student          user            @relation(fields: [student_id], references: [user_id])
+  request_price    Int
+  request_location String
+  status           String
+  request_date     DateTime
+  created_at       DateTime        @default(now())
+  updated_at       DateTime        @updatedAt
+
+  // One-to-one relation (must be unique on the other side)
+  enrollment enrollment?
+}
+
+model enrollment {
+  enrollment_id String   @id @default(cuid())
+  request_id    String   @unique
+  request       request  @relation(fields: [request_id], references: [request_id])
+  start_date    DateTime
+  end_date      DateTime
+  status        String
+  request_date  DateTime
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  // One-to-one relation
+  review           review?
+  // One-to-many relation
+  attendance       attendance[]
+  payment          payment[]
+  session_progress session_progress[]
+}
+
+model review {
+  review_id     String     @id @default(cuid())
+  enrollment_id String     @unique
+  enrollment    enrollment @relation(fields: [enrollment_id], references: [enrollment_id])
+  rating        Int
+  comment       String
+  review_date   DateTime
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
+}
+
+model attendance {
+  attendance_id      String     @id @default(cuid())
+  enrollment_id      String
+  enrollment         enrollment @relation(fields: [enrollment_id], references: [enrollment_id])
+  session_number     Int
+  attendance_status  String
+  reason_for_absence String?
+  date_attendance    DateTime
+  requested_by       String
+  requested          user       @relation(fields: [requested_by], references: [user_id])
+  created_at         DateTime   @default(now())
+  updated_at         DateTime   @updatedAt
+}
+
+model payment {
+  payment_id     String     @id @default(cuid())
+  session_number Int
+  enrollment_id  String
+  enrollment     enrollment @relation(fields: [enrollment_id], references: [enrollment_id])
+  payment_date   DateTime
+  payment_status String
+  created_at     DateTime   @default(now())
+  updated_at     DateTime   @updatedAt
+}
+
+model session_progress {
+  session_progress_id String     @id @default(cuid())
+  enrollment_id       String
+  enrollment          enrollment @relation(fields: [enrollment_id], references: [enrollment_id])
+  session_number      Int
+  topic_covered       String
+  performance_notes   String
+  attendance          String
+  date_session        DateTime
+  created_at          DateTime   @default(now())
+  updated_at          DateTime   @updatedAt
+}
