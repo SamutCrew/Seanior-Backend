@@ -1,5 +1,7 @@
+// users.service.ts
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { createUser, checkUser, userData } from '../schemas/user';
 
 @Injectable()
 export class UsersService {
@@ -25,7 +27,7 @@ export class UsersService {
     user_type?: string;
   }) {
     if (!userData.firebase_uid || !userData.email) {
-      throw new Error('Missing required fields');
+      throw new Error('Firebase UID and email are required');
     }
 
     return this.prisma.user.create({
@@ -37,5 +39,9 @@ export class UsersService {
         user_type: userData.user_type || 'user',
       },
     });
+  }
+
+  async getAllUsers() {
+    return this.prisma.user.findMany({});
   }
 }
