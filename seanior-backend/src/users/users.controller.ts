@@ -26,6 +26,7 @@ export class UsersController {
 
   constructor(private readonly usersService: UsersService) {}
 
+  @Post('retrieve/checkUser')
   @ApiOperation({ summary: 'Check if a user exists on database' })
   @ApiResponse({
     status: 200,
@@ -33,22 +34,33 @@ export class UsersController {
     type: createUser,
   })
   @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  @ApiResponse({
     status: 400,
     description: 'Invalid input',
   })
-  @Post('retrieve/checkUser')
   async checkUser(@Body() body: checkUser) {
     try {
       const user = await this.usersService.checkUser(body.firebase_uid);
       if (!user) {
         this.logger.log(`User not found for firebase_uid: ${body.firebase_uid}`);
+        throw new HttpException(
+          { error: 'User not found' },
+          HttpStatus.NOT_FOUND, // Return 404 when user is not found
+        );
       }
-      return user || null; // Return null for non-existent user
+      this.logger.log(`User found: ${JSON.stringify(user)}`);
+      return user;
     } catch (error) {
       this.logger.error(`Failed to check user: ${error.message}`, {
         firebase_uid: body.firebase_uid || 'Not provided',
         stack: error.stack,
       });
+      if (error.status === HttpStatus.NOT_FOUND) {
+        throw error; // Re-throw the 404 error
+      }
       throw new HttpException(
         { error: error.message || 'Internal server error' },
         error.message === 'Firebase UID is required'
@@ -58,6 +70,7 @@ export class UsersController {
     }
   }
 
+  @Post('create/createUser')
   @ApiOperation({ summary: 'Create a new user on database' })
   @ApiResponse({
     status: 201,
@@ -68,7 +81,6 @@ export class UsersController {
     status: 400,
     description: 'Invalid input',
   })
-  @Post('create/createUser')
   async createUser(@Body() userData: createUser) {
     try {
       const newUser = await this.usersService.createUser(userData);
@@ -93,6 +105,7 @@ export class UsersController {
     }
   }
 
+  @Get('retrieve/getAllUsers')
   @ApiOperation({ summary: 'Get all users from database' })
   @ApiBearerAuth()
   @ApiResponse({
@@ -105,7 +118,6 @@ export class UsersController {
     description: 'Unauthorized',
   })
   @UseGuards(FirebaseAuthGuard)
-  @Get('retrieve/getAllUsers')
   async getAllUsers() {
     try {
       const users = await this.usersService.getAllUsers();
