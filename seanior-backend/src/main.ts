@@ -1,3 +1,4 @@
+// main.ts
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
@@ -37,15 +38,15 @@ async function bootstrap() {
 
   // Enable CORS with explicit configuration
   app.enableCors({
-    origin: process.env.FRONTEND_URL ?? 'http://localhost:3000', // Allow requests from the frontend URL
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS', // Allow all necessary methods
-    allowedHeaders: 'Content-Type, Authorization, Accept', // Allow specific headers
-    credentials: true, // Allow credentials (if needed)
-    preflightContinue: false, // Ensure preflight requests are handled correctly
-    optionsSuccessStatus: 201, // Standard status for OPTIONS requests
+    origin: process.env.FRONTEND_URL ?? 'http://localhost:3000',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type, Authorization, Accept',
+    credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 201,
   });
 
-  // middleware log all requests for debugging
+  // Middleware to log all requests for debugging
   app.use((req, res, next) => {
     logger.log(`Request: ${req.method} ${req.originalUrl}`);
     logger.debug(`Headers: ${JSON.stringify(req.headers)}`);

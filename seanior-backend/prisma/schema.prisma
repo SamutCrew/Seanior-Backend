@@ -33,6 +33,19 @@ model user {
   swimming_courses swimming_course[]
   request          request[]
   attendance       attendance[]
+  resource         resource[]
+}
+
+model resource {
+  resource_id   String   @id @default(cuid())
+  user_id       String
+  user          user     @relation(fields: [user_id], references: [user_id])
+  resource_name String
+  resource_type String
+  resource_url  String
+  resource_size Float
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 }
 
 model swimming_course {

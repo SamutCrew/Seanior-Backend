@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-export class createUser {
+export class createUserDto {
   @ApiProperty()
   user_id?: string;
 
@@ -19,12 +19,12 @@ export class createUser {
   user_type?: string;
 }
 
-export class checkUser {
+export class checkUserDto {
   @ApiProperty()
   firebase_uid: string;
 }
 
-export class userData {
+export class userDataDto {
   @ApiProperty()
   user_id: string;
 

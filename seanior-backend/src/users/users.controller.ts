@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { createUser, checkUser, userData } from '../schemas/user';
+import { createUserDto, checkUserDto, userDataDto } from '../schemas/user';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -30,8 +30,9 @@ export class UsersController {
   @ApiOperation({ summary: 'Check if a user exists on database' })
   @ApiResponse({
     status: 200,
-    description: 'User existence checked (returns user data or null if not found)',
-    type: createUser,
+    description:
+      'User existence checked (returns user data or null if not found)',
+    type: createUserDto,
   })
   @ApiResponse({
     status: 404,
@@ -41,11 +42,13 @@ export class UsersController {
     status: 400,
     description: 'Invalid input',
   })
-  async checkUser(@Body() body: checkUser) {
+  async checkUser(@Body() body: checkUserDto) {
     try {
       const user = await this.usersService.checkUser(body.firebase_uid);
       if (!user) {
-        this.logger.log(`User not found for firebase_uid: ${body.firebase_uid}`);
+        this.logger.log(
+          `User not found for firebase_uid: ${body.firebase_uid}`,
+        );
         throw new HttpException(
           { error: 'User not found' },
           HttpStatus.NOT_FOUND, // Return 404 when user is not found
@@ -75,13 +78,13 @@ export class UsersController {
   @ApiResponse({
     status: 201,
     description: 'User created successfully',
-    type: createUser,
+    type: createUserDto,
   })
   @ApiResponse({
     status: 400,
     description: 'Invalid input',
   })
-  async createUser(@Body() userData: createUser) {
+  async createUser(@Body() userData: createUserDto) {
     try {
       const newUser = await this.usersService.createUser(userData);
       return newUser;
@@ -111,7 +114,7 @@ export class UsersController {
   @ApiResponse({
     status: 200,
     description: 'Users retrieved successfully',
-    type: [userData],
+    type: [userDataDto],
   })
   @ApiResponse({
     status: 401,
