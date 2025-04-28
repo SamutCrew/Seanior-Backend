@@ -55,3 +55,29 @@ export class userDataDto {
   @ApiProperty()
   description?: JSON;
 }
+
+export class updateUserDataDto {
+  @ApiProperty({ required: false })
+  email?: string;
+
+  @ApiProperty({ required: false })
+  name?: string;
+
+  @ApiProperty({ required: false })
+  gender?: string;
+
+  @ApiProperty({ required: false })
+  address?: string;
+
+  @ApiProperty({ required: false })
+  phone_number?: string;
+
+  @ApiProperty({ required: false })
+  profile_img?: string;
+
+  @ApiProperty({ required: false })
+  user_type?: string;
+
+  @ApiProperty({ required: false })
+  description?: any;
+}

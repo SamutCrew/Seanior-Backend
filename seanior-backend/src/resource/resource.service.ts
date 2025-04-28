@@ -77,6 +77,71 @@ export class ResourceService {
     return { resourceUrl, resourceId: resource.resource_id };
   }
 
+  async uploadProfileImage(
+    file: Express.Multer.File,
+    userId: string,
+    containerName: string,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { user_id: userId },
+    });
+
+    if (!user) {
+      throw new BadRequestException(`User with ID ${userId} not found`);
+    }
+
+    // Check for existing profile image and delete it
+    const existingProfileImages = await this.prisma.resource.findMany({
+      where: {
+        user_id: userId,
+        resource_name: {
+          startsWith: `${userId}_profile.`,
+        },
+      },
+    });
+
+    // Delete all existing profile images
+    for (const existingImage of existingProfileImages) {
+      await this.deleteResource(existingImage.resource_id, containerName);
+    }
+
+    // Use deterministic name: user_id + "_profile"
+    const extension = file.originalname.split('.').pop();
+    if (!extension) {
+      throw new BadRequestException('File must have a valid extension');
+    }
+    const fileName = `${userId}_profile.${extension}`;
+    const blockBlobClient = await this.getBlobClient(containerName, fileName);
+
+    await blockBlobClient.uploadData(file.buffer, {
+      blobHTTPHeaders: { blobContentType: file.mimetype },
+    });
+
+    const resourceUrl = blockBlobClient.url;
+
+    const sizeInKiB = file.size / 1024;
+
+    // Create a new resource entry
+    const resource = await this.prisma.resource.create({
+      data: {
+        resource_id: uuid(),
+        user_id: userId,
+        resource_name: fileName,
+        resource_type: file.mimetype,
+        resource_url: resourceUrl,
+        resource_size: sizeInKiB,
+      },
+    });
+
+    // Update user's profile_img
+    await this.prisma.user.update({
+      where: { user_id: userId },
+      data: { profile_img: resourceUrl },
+    });
+
+    return { resourceUrl, resourceId: resource.resource_id };
+  }
+
   async deleteResource(
     resourceId: string,
     containerName: string,

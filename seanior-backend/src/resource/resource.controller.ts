@@ -89,6 +89,52 @@ export class ResourceController {
     }
   }
 
+  @Post('upload-profile-image/:userId')
+  @ApiOperation({ summary: 'Upload a profile image for a user' })
+  @ApiConsumes('multipart/form-data')
+  @ApiParam({
+    name: 'userId',
+    description: 'The ID of the user uploading the profile image',
+  })
+  @ApiBody({
+    description: 'Profile image file to upload',
+    type: UploadResourceDto,
+  })
+  @ApiOkResponse({
+    type: ResourceResponseDto,
+    description: 'Profile image uploaded successfully',
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid file, user ID, or malformed request',
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadProfileImage(
+    @UploadedFile() file: Express.Multer.File,
+    @Param('userId') userId: string,
+  ) {
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+    const containerName = 'resoucre';
+    try {
+      const result = await this.resourceService.uploadProfileImage(
+        file,
+        userId,
+        containerName,
+      );
+      return {
+        message: 'Profile image uploaded successfully',
+        resourceUrl: result.resourceUrl,
+        resourceId: result.resourceId,
+      };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Multipart')) {
+        throw new BadRequestException('Malformed multipart form data');
+      }
+      throw error;
+    }
+  }
+
   @Delete('/delete/:resourceId')
   @ApiOperation({ summary: 'Delete a resource by ID' })
   @ApiParam({
