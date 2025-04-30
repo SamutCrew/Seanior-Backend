@@ -3,19 +3,29 @@ import {
   Controller,
   Post,
   Get,
+  Put,
   Body,
   HttpException,
   HttpStatus,
   Logger,
   UseGuards,
+  Param,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { createUser, checkUser, userData } from '../schemas/user';
+import {
+  createUserDto,
+  checkUserDto,
+  userDataDto,
+  updateUserDataDto,
+} from '../schemas/user';
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiResponse,
   ApiTags,
+  ApiOkResponse,
+  ApiBadRequestResponse,
+  ApiParam,
 } from '@nestjs/swagger';
 import { FirebaseAuthGuard } from '../guards/firebase-auth.guard';
 
@@ -30,8 +40,9 @@ export class UsersController {
   @ApiOperation({ summary: 'Check if a user exists on database' })
   @ApiResponse({
     status: 200,
-    description: 'User existence checked (returns user data or null if not found)',
-    type: createUser,
+    description:
+      'User existence checked (returns user data or null if not found)',
+    type: createUserDto,
   })
   @ApiResponse({
     status: 404,
@@ -41,11 +52,13 @@ export class UsersController {
     status: 400,
     description: 'Invalid input',
   })
-  async checkUser(@Body() body: checkUser) {
+  async checkUser(@Body() body: checkUserDto) {
     try {
       const user = await this.usersService.checkUser(body.firebase_uid);
       if (!user) {
-        this.logger.log(`User not found for firebase_uid: ${body.firebase_uid}`);
+        this.logger.log(
+          `User not found for firebase_uid: ${body.firebase_uid}`,
+        );
         throw new HttpException(
           { error: 'User not found' },
           HttpStatus.NOT_FOUND, // Return 404 when user is not found
@@ -75,13 +88,13 @@ export class UsersController {
   @ApiResponse({
     status: 201,
     description: 'User created successfully',
-    type: createUser,
+    type: createUserDto,
   })
   @ApiResponse({
     status: 400,
     description: 'Invalid input',
   })
-  async createUser(@Body() userData: createUser) {
+  async createUser(@Body() userData: createUserDto) {
     try {
       const newUser = await this.usersService.createUser(userData);
       return newUser;
@@ -105,13 +118,100 @@ export class UsersController {
     }
   }
 
+  @Get('retrieve/:userId')
+  @ApiBearerAuth()
+  @UseGuards(FirebaseAuthGuard)
+  @ApiOperation({ summary: 'Get user data from database by user_id' })
+  @ApiOkResponse({
+    description: 'User data retrieved successfully',
+    type: userDataDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid input',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  @ApiParam({
+    name: 'userId',
+    description: 'The ID of the user being retrieved',
+  })
+  async getUser(@Param('userId') userId: string) {
+    try {
+      const user = await this.usersService.getUserById(userId);
+      if (!user) {
+        this.logger.log(`User not found for userId: ${userId}`);
+        throw new HttpException(
+          { error: 'User not found' },
+          HttpStatus.NOT_FOUND,
+        );
+      }
+      return user;
+    } catch (error) {
+      this.logger.error(`Failed to retrieve user: ${error.message}`, {
+        stack: error.stack,
+      });
+      throw new HttpException(
+        { error: 'Database error', details: error.message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Put('update/:userId')
+  @ApiOperation({ summary: 'Update user data by user_id' })
+  @ApiBearerAuth()
+  @UseGuards(FirebaseAuthGuard)
+  @ApiOkResponse({
+    description: 'User data updated successfully',
+    type: userDataDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid input',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  @ApiParam({
+    name: 'userId',
+    description: 'The ID of the user being updated',
+  })
+  async updateUser(
+    @Param('userId') userId: string,
+    @Body() userData: updateUserDataDto,
+  ) {
+    try {
+      const updatedUser = await this.usersService.updateUserData(
+        userId,
+        userData,
+      ); // Fixed method name
+      return updatedUser;
+    } catch (error) {
+      this.logger.error(`Failed to update user: ${error.message}`, {
+        stack: error.stack,
+      });
+      if (error.message === 'User not found') {
+        throw new HttpException(
+          { error: 'User not found' },
+          HttpStatus.NOT_FOUND,
+        );
+      }
+      throw new HttpException(
+        { error: 'Database error', details: error.message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   @Get('retrieve/getAllUsers')
   @ApiOperation({ summary: 'Get all users from database' })
   @ApiBearerAuth()
   @ApiResponse({
     status: 200,
     description: 'Users retrieved successfully',
-    type: [userData],
+    type: [userDataDto],
   })
   @ApiResponse({
     status: 401,
