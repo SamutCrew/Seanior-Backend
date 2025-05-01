@@ -232,13 +232,12 @@ export class UsersController {
       );
     }
   }
-}
 
- @ApiOperation({ summary: 'Get all teachers from database' })
+  @ApiOperation({ summary: 'Get all teachers from database' })
   @ApiResponse({
     status: 200,
     description: 'Teachers retrieved successfully',
-    type: [userData],
+    type: [userDataDto],
   })
   @ApiResponse({
     status: 401,
