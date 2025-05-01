@@ -7,9 +7,11 @@ import { UsersService } from './users/users.service';
 import { AuthModule } from './auth/auth.module';
 import { PrismaService } from './prisma/prisma.service';
 import { PrismaModule } from './prisma/prisma.module';
+import { SwimmingCourseModule } from './swimming-course/swimming-course.module';
+import { SwimmingCourseController } from './swimming-course/swimming-course.controller';
 
 @Module({
-  imports: [UsersModule, AuthModule, PrismaModule],
+  imports: [SwimmingCourseModule, UsersModule, AuthModule, PrismaModule],
   controllers: [AppController, UsersController],
   providers: [AppService, UsersService, PrismaService],
 })

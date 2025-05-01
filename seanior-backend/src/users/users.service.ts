@@ -44,4 +44,11 @@ export class UsersService {
   async getAllUsers() {
     return this.prisma.user.findMany({});
   }
+  async getAllTeachers() {
+    return this.prisma.user.findMany({
+      where: {
+        user_type: 'teacher',
+      },
+    });
+  }
 }
