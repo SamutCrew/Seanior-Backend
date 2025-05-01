@@ -117,39 +117,26 @@ export class UsersController {
       );
     }
   }
-
-  @Get('retrieve/:userId')
-  @ApiBearerAuth()
-  @UseGuards(FirebaseAuthGuard)
-  @ApiOperation({ summary: 'Get user data from database by user_id' })
-  @ApiOkResponse({
-    description: 'User data retrieved successfully',
-    type: userDataDto,
-  })
-  @ApiBadRequestResponse({
-    description: 'Invalid input',
+  @ApiOperation({ summary: 'Get all teachers from database' })
+  @ApiResponse({
+    status: 200,
+    description: 'Teachers retrieved successfully',
+    type: [userDataDto],
   })
   @ApiResponse({
-    status: 404,
-    description: 'User not found',
+    status: 401,
+    description: 'Unauthorized',
   })
-  @ApiParam({
-    name: 'userId',
-    description: 'The ID of the user being retrieved',
-  })
-  async getUser(@Param('userId') userId: string) {
+
+  @UseGuards(FirebaseAuthGuard)
+  @ApiBearerAuth()
+  @Get('retrieve/getAllTeachers')
+  async getAllTeachers() {
     try {
-      const user = await this.usersService.getUserById(userId);
-      if (!user) {
-        this.logger.log(`User not found for userId: ${userId}`);
-        throw new HttpException(
-          { error: 'User not found' },
-          HttpStatus.NOT_FOUND,
-        );
-      }
-      return user;
+      const teachers = await this.usersService.getAllTeachers(); // <-- ไปเพิ่มใน service ด้วยนะ
+      return teachers;
     } catch (error) {
-      this.logger.error(`Failed to retrieve user: ${error.message}`, {
+      this.logger.error(`Failed to retrieve teachers: ${error.message}`, {
         stack: error.stack,
       });
       throw new HttpException(
@@ -233,24 +220,38 @@ export class UsersController {
     }
   }
 
-  @ApiOperation({ summary: 'Get all teachers from database' })
-  @ApiResponse({
-    status: 200,
-    description: 'Teachers retrieved successfully',
-    type: [userDataDto],
+  @Get('retrieve/:userId')
+  @ApiBearerAuth()
+  @UseGuards(FirebaseAuthGuard)
+  @ApiOperation({ summary: 'Get user data from database by user_id' })
+  @ApiOkResponse({
+    description: 'User data retrieved successfully',
+    type: userDataDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid input',
   })
   @ApiResponse({
-    status: 401,
-    description: 'Unauthorized',
+    status: 404,
+    description: 'User not found',
   })
-
-  @Get('retrieve/getAllTeachers')
-  async getAllTeachers() {
+  @ApiParam({
+    name: 'userId',
+    description: 'The ID of the user being retrieved',
+  })
+  async getUser(@Param('userId') userId: string) {
     try {
-      const teachers = await this.usersService.getAllTeachers(); // <-- ไปเพิ่มใน service ด้วยนะ
-      return teachers;
+      const user = await this.usersService.getUserById(userId);
+      if (!user) {
+        this.logger.log(`User not found for userId: ${userId}`);
+        throw new HttpException(
+          { error: 'User not found' },
+          HttpStatus.NOT_FOUND,
+        );
+      }
+      return user;
     } catch (error) {
-      this.logger.error(`Failed to retrieve teachers: ${error.message}`, {
+      this.logger.error(`Failed to retrieve user: ${error.message}`, {
         stack: error.stack,
       });
       throw new HttpException(
