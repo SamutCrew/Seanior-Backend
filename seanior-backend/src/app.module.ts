@@ -12,6 +12,8 @@ import { ResourceController } from './resource/resource.controller';
 import { ResourceService } from './resource/resource.service';
 import { ResourceModule } from './resource/resource.module';
 import { ConfigModule } from '@nestjs/config';
+import { SwimmingCourseModule } from './swimming-course/swimming-course.module';
+import { SwimmingCourseController } from './swimming-course/swimming-course.controller';
 
 @Module({
   imports: [
@@ -20,6 +22,7 @@ import { ConfigModule } from '@nestjs/config';
     AuthModule,
     PrismaModule,
     ResourceModule,
+    SwimmingCourseModule,
   ],
   controllers: [AppController],
   providers: [AppService],

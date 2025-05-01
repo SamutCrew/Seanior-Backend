@@ -233,3 +233,31 @@ export class UsersController {
     }
   }
 }
+
+ @ApiOperation({ summary: 'Get all teachers from database' })
+  @ApiResponse({
+    status: 200,
+    description: 'Teachers retrieved successfully',
+    type: [userData],
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+
+  @Get('retrieve/getAllTeachers')
+  async getAllTeachers() {
+    try {
+      const teachers = await this.usersService.getAllTeachers(); // <-- ไปเพิ่มใน service ด้วยนะ
+      return teachers;
+    } catch (error) {
+      this.logger.error(`Failed to retrieve teachers: ${error.message}`, {
+        stack: error.stack,
+      });
+      throw new HttpException(
+        { error: 'Database error', details: error.message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+}
