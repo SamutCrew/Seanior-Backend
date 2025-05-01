@@ -1,3 +1,4 @@
+// app.module.ts
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -7,12 +8,26 @@ import { UsersService } from './users/users.service';
 import { AuthModule } from './auth/auth.module';
 import { PrismaService } from './prisma/prisma.service';
 import { PrismaModule } from './prisma/prisma.module';
+import { ResourceController } from './resource/resource.controller';
+import { ResourceService } from './resource/resource.service';
+import { ResourceModule } from './resource/resource.module';
+import { ConfigModule } from '@nestjs/config';
 import { SwimmingCourseModule } from './swimming-course/swimming-course.module';
 import { SwimmingCourseController } from './swimming-course/swimming-course.controller';
 
 @Module({
-  imports: [SwimmingCourseModule, UsersModule, AuthModule, PrismaModule],
-  controllers: [AppController, UsersController],
-  providers: [AppService, UsersService, PrismaService],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    UsersModule,
+    AuthModule,
+    PrismaModule,
+    ResourceModule,
+    SwimmingCourseModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+  // imports: [UsersModule, AuthModule, PrismaModule, ResourceModule],
+  // controllers: [AppController, UsersController, ResourceController],
+  // providers: [AppService, UsersService, PrismaService, ResourceService],
 })
 export class AppModule {}
