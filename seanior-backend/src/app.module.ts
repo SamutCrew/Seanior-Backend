@@ -12,6 +12,8 @@ import { ResourceController } from './resource/resource.controller';
 import { ResourceService } from './resource/resource.service';
 import { ResourceModule } from './resource/resource.module';
 import { ConfigModule } from '@nestjs/config';
+import { SwimmingCourseModule } from './swimming-course/swimming-course.module';
+import { SwimmingCourseController } from './swimming-course/swimming-course.controller';
 import { InstructorRequestService } from './instructor-request/instructor-request.service';
 import { InstructorRequestController } from './instructor-request/instructor-request.controller';
 import { InstructorRequestModule } from './instructor-request/instructor-request.module';
@@ -23,6 +25,7 @@ import { InstructorRequestModule } from './instructor-request/instructor-request
     AuthModule,
     PrismaModule,
     ResourceModule,
+    SwimmingCourseModule,
     InstructorRequestModule,
   ],
   controllers: [AppController, InstructorRequestController],
