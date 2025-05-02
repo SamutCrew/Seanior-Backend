@@ -12,6 +12,9 @@ import { ResourceController } from './resource/resource.controller';
 import { ResourceService } from './resource/resource.service';
 import { ResourceModule } from './resource/resource.module';
 import { ConfigModule } from '@nestjs/config';
+import { InstructorRequestService } from './instructor-request/instructor-request.service';
+import { InstructorRequestController } from './instructor-request/instructor-request.controller';
+import { InstructorRequestModule } from './instructor-request/instructor-request.module';
 
 @Module({
   imports: [
@@ -20,9 +23,10 @@ import { ConfigModule } from '@nestjs/config';
     AuthModule,
     PrismaModule,
     ResourceModule,
+    InstructorRequestModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [AppController, InstructorRequestController],
+  providers: [AppService, InstructorRequestService],
   // imports: [UsersModule, AuthModule, PrismaModule, ResourceModule],
   // controllers: [AppController, UsersController, ResourceController],
   // providers: [AppService, UsersService, PrismaService, ResourceService],

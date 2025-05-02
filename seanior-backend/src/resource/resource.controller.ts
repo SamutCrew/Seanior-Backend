@@ -78,8 +78,8 @@ export class ResourceController {
       );
       return {
         message: 'Resource uploaded successfully',
-        resourceUrl: result.resourceUrl,
-        resourceId: result.resourceId,
+        resource_url: result.resourceUrl,
+        resource_id: result.resourceId,
       };
     } catch (error) {
       if (error instanceof Error && error.message.includes('Multipart')) {
@@ -124,8 +124,100 @@ export class ResourceController {
       );
       return {
         message: 'Profile image uploaded successfully',
-        resourceUrl: result.resourceUrl,
-        resourceId: result.resourceId,
+        resource_url: result.resourceUrl,
+        resource_id: result.resourceId,
+      };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Multipart')) {
+        throw new BadRequestException('Malformed multipart form data');
+      }
+      throw error;
+    }
+  }
+
+  @Post('upload-id-card/:userId')
+  @ApiOperation({ summary: 'Upload an ID card for a user' })
+  @ApiConsumes('multipart/form-data')
+  @ApiParam({
+    name: 'userId',
+    description: 'The ID of the user uploading the ID card',
+  })
+  @ApiBody({
+    description: 'ID card file to upload (image or PDF)',
+    type: UploadResourceDto,
+  })
+  @ApiOkResponse({
+    type: ResourceResponseDto,
+    description: 'ID card uploaded successfully',
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid file, user ID, or malformed request',
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadIdCard(
+    @UploadedFile() file: Express.Multer.File,
+    @Param('userId') userId: string,
+  ) {
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+    const containerName = 'resoucre';
+    try {
+      const result = await this.resourceService.uploadIdCard(
+        file,
+        userId,
+        containerName,
+      );
+      return {
+        message: 'ID card uploaded successfully',
+        resource_url: result.resourceUrl,
+        resource_id: result.resourceId,
+      };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Multipart')) {
+        throw new BadRequestException('Malformed multipart form data');
+      }
+      throw error;
+    }
+  }
+
+  @Post('upload-swimming-license/:userId')
+  @ApiOperation({ summary: 'Upload a swimming instructor license for a user' })
+  @ApiConsumes('multipart/form-data')
+  @ApiParam({
+    name: 'userId',
+    description: 'The ID of the user uploading the swimming instructor license',
+  })
+  @ApiBody({
+    description: 'Swimming instructor license file to upload (image or PDF)',
+    type: UploadResourceDto,
+  })
+  @ApiOkResponse({
+    type: ResourceResponseDto,
+    description: 'Swimming instructor license uploaded successfully',
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid file, user ID, or malformed request',
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadSwimmingLicense(
+    @UploadedFile() file: Express.Multer.File,
+    @Param('userId') userId: string,
+  ) {
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+    const containerName = 'resoucre';
+    try {
+      const result = await this.resourceService.uploadSwimmingLicense(
+        file,
+        userId,
+        containerName,
+      );
+      return {
+        message: 'Swimming instructor license uploaded successfully',
+        resource_url: result.resourceUrl,
+        resource_id: result.resourceId,
       };
     } catch (error) {
       if (error instanceof Error && error.message.includes('Multipart')) {

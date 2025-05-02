@@ -142,6 +142,124 @@ export class ResourceService {
     return { resourceUrl, resourceId: resource.resource_id };
   }
 
+  async uploadIdCard(
+    file: Express.Multer.File,
+    userId: string,
+    containerName: string,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { user_id: userId },
+    });
+
+    if (!user) {
+      throw new BadRequestException(`User with ID ${userId} not found`);
+    }
+
+    // Check for existing ID card and delete it (optional, depending on your requirements)
+    const existingIdCards = await this.prisma.resource.findMany({
+      where: {
+        user_id: userId,
+        resource_name: {
+          startsWith: `${userId}_idcard.`,
+        },
+      },
+    });
+
+    // Delete existing ID cards to ensure only one ID card exists at a time
+    for (const existingIdCard of existingIdCards) {
+      await this.deleteResource(existingIdCard.resource_id, containerName);
+    }
+
+    // Use deterministic name: user_id + "_idcard"
+    const extension = file.originalname.split('.').pop();
+    if (!extension) {
+      throw new BadRequestException('File must have a valid extension');
+    }
+    const fileName = `${userId}_idcard.${extension}`;
+    const blockBlobClient = await this.getBlobClient(containerName, fileName);
+
+    await blockBlobClient.uploadData(file.buffer, {
+      blobHTTPHeaders: { blobContentType: file.mimetype },
+    });
+
+    const resourceUrl = blockBlobClient.url;
+
+    const sizeInKiB = file.size / 1024;
+
+    // Create a new resource entry
+    const resource = await this.prisma.resource.create({
+      data: {
+        resource_id: uuid(),
+        user_id: userId,
+        resource_name: fileName,
+        resource_type: file.mimetype,
+        resource_url: resourceUrl,
+        resource_size: sizeInKiB,
+      },
+    });
+
+    return { resourceUrl, resourceId: resource.resource_id };
+  }
+
+  async uploadSwimmingLicense(
+    file: Express.Multer.File,
+    userId: string,
+    containerName: string,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { user_id: userId },
+    });
+
+    if (!user) {
+      throw new BadRequestException(`User with ID ${userId} not found`);
+    }
+
+    // Check for existing swimming license and delete it (optional, depending on your requirements)
+    const existingLicenses = await this.prisma.resource.findMany({
+      where: {
+        user_id: userId,
+        resource_name: {
+          startsWith: `${userId}_license.`,
+        },
+      },
+    });
+
+    // Delete existing licenses to ensure only one license exists at a time
+    for (const existingLicense of existingLicenses) {
+      await this.deleteResource(existingLicense.resource_id, containerName);
+    }
+
+    // Use deterministic name: user_id + "_license"
+    const extension = file.originalname.split('.').pop();
+    if (!extension) {
+      throw new BadRequestException('File must have a valid extension');
+    }
+    const fileName = `${userId}_license.${extension}`;
+    const blockBlobClient = await this.getBlobClient(containerName, fileName);
+
+    await blockBlobClient.uploadData(file.buffer, {
+      blobHTTPHeaders: { blobContentType: file.mimetype },
+    });
+
+    const resourceUrl = blockBlobClient.url;
+
+    const sizeInKiB = file.size / 1024;
+
+    // Create a new resource entry
+    const resource = await this.prisma.resource.create({
+      data: {
+        resource_id: uuid(),
+        user_id: userId,
+        resource_name: fileName,
+        resource_type: file.mimetype,
+        resource_url: resourceUrl,
+        resource_size: sizeInKiB,
+      },
+    });
+
+    return { resourceUrl, resourceId: resource.resource_id };
+  }
+
   async deleteResource(
     resourceId: string,
     containerName: string,
