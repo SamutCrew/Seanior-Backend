@@ -34,6 +34,7 @@ model user {
   request          request[]
   attendance       attendance[]
   resource         resource[]
+  instructor_requests instructor_request[]
 }
 
 model resource {
@@ -46,6 +47,27 @@ model resource {
   resource_size Float
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
+}
+
+model instructor_request {
+  request_id              String   @id @default(cuid())
+  user_id                 String
+  user                    user     @relation(fields: [user_id], references: [user_id])
+  full_name               String
+  phone_number            String
+  address                 String
+  profile_image           String
+  date_of_birth           DateTime
+  education_record        String
+  id_card_url             String
+  contact_channels        Json // { "line": "...", "facebook": "...", "instagram": "..." }
+  swimming_instructor_license String
+  teaching_history        String?
+  additional_skills        String?
+  status                  String   @default("pending") // "pending", "approved", "rejected"
+  rejection_reason        String?  
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
 }
 
 model swimming_course {

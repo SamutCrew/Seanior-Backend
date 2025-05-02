@@ -49,7 +49,9 @@ async function bootstrap() {
   // Middleware to log all requests for debugging
   app.use((req, res, next) => {
     logger.log(`Request: ${req.method} ${req.originalUrl}`);
+    logger.debug(`Params: ${JSON.stringify(req.params)}`);
     logger.debug(`Headers: ${JSON.stringify(req.headers)}`);
+    logger.debug(`Body: ${JSON.stringify(req.body)}`);
     res.on('finish', () => {
       logger.log(
         `Response: ${req.method} ${req.originalUrl} - Status: ${res.statusCode}`,
