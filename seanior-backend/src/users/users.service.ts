@@ -135,10 +135,10 @@ export class UsersService {
   async getAllUsers() {
     return this.prisma.user.findMany({});
   }
-  async getAllTeachers() {
+  async getAllInstructors() {
     return this.prisma.user.findMany({
       where: {
-        user_type: 'teacher',
+        user_type: 'instructor',
       },
     });
   }
