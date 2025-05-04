@@ -117,10 +117,10 @@ export class UsersController {
       );
     }
   }
-  @ApiOperation({ summary: 'Get all teachers from database' })
+  @ApiOperation({ summary: 'Get all instructors from database' })
   @ApiResponse({
     status: 200,
-    description: 'Teachers retrieved successfully',
+    description: 'Instructors retrieved successfully',
     type: [userDataDto],
   })
   @ApiResponse({
@@ -130,13 +130,13 @@ export class UsersController {
 
   @UseGuards(FirebaseAuthGuard)
   @ApiBearerAuth()
-  @Get('retrieve/getAllTeachers')
-  async getAllTeachers() {
+  @Get('retrieve/getAllInstructors')
+  async getAllInstructors() {
     try {
-      const teachers = await this.usersService.getAllTeachers(); // <-- ไปเพิ่มใน service ด้วยนะ
-      return teachers;
+      const instructors = await this.usersService.getAllInstructors(); // <-- ไปเพิ่มใน service ด้วยนะ
+      return instructors;
     } catch (error) {
-      this.logger.error(`Failed to retrieve teachers: ${error.message}`, {
+      this.logger.error(`Failed to retrieve instructors: ${error.message}`, {
         stack: error.stack,
       });
       throw new HttpException(
