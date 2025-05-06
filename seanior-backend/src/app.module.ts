@@ -17,6 +17,9 @@ import { SwimmingCourseController } from './swimming-course/swimming-course.cont
 import { InstructorRequestService } from './instructor-request/instructor-request.service';
 import { InstructorRequestController } from './instructor-request/instructor-request.controller';
 import { InstructorRequestModule } from './instructor-request/instructor-request.module';
+import { PaymentModule } from './payment/payment.module';
+import { PaymentController } from './payment/payment.controller';
+import { PaymentService } from './payment/payment.service';
 
 @Module({
   imports: [
@@ -27,6 +30,7 @@ import { InstructorRequestModule } from './instructor-request/instructor-request
     ResourceModule,
     SwimmingCourseModule,
     InstructorRequestModule,
+    PaymentModule,
   ],
   controllers: [AppController, InstructorRequestController],
   providers: [AppService, InstructorRequestService],
