@@ -133,7 +133,7 @@ export class InstructorRequestService {
     // Update the user's user_type to Instructor
     await this.prisma.user.update({
       where: { user_id: request.user_id },
-      data: { user_type: 'Instructor' },
+      data: { user_type: 'instructor' },
     });
 
     return updatedRequest;
