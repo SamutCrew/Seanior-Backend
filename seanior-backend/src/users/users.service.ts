@@ -37,17 +37,39 @@ export class UsersService {
       throw new Error('Firebase UID and email are required');
     }
 
-    return this.prisma.user.create({
-      data: {
-        firebase_uid: userData.firebase_uid,
-        email: userData.email,
-        name: userData.name || '',
-        profile_img: userData.profile_img || '',
-        user_type: userData.user_type || 'user',
-      },
-    });
+    try {
+      return await this.prisma.user.create({
+        data: {
+          firebase_uid: userData.firebase_uid,
+          email: userData.email,
+          name: userData.name || '',
+          profile_img: userData.profile_img || '',
+          user_type: userData.user_type || 'user',
+        },
+      });
+    } catch (error) {
+      if (
+        error.code === 'P2002' &&
+        error.meta?.target?.includes('firebase_uid')
+      ) {
+        this.logger.log(
+          `User already exists for firebase_uid: ${userData.firebase_uid}`,
+        );
+        const existingUser = await this.prisma.user.findUnique({
+          where: { firebase_uid: userData.firebase_uid },
+        });
+        if (existingUser) {
+          return existingUser; // Return existing user
+        }
+        throw new Error('User not found after unique constraint failure');
+      }
+      this.logger.error(`Failed to create user: ${error.message}`, {
+        stack: error.stack,
+      });
+      throw error; // Rethrow other errors
+    }
   }
-
+  
   async getUserById(userId: string) {
     if (!userId) {
       throw new Error('User ID is required');
