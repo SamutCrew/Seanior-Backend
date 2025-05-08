@@ -73,24 +73,29 @@ model instructor_request {
 
 model swimming_course {
   course_id                String   @id @default(cuid())
-  course_name              String
-  coach_id                 String
-  coach                    user     @relation(fields: [coach_id], references: [user_id])
-  price_min                Int
-  price_max                Int
-  pool_type                String
-  location                 String
-  description              String
-  course_duration          Int
+  course_name              String                          // ← title
+  instructor_id            String                          // ← ref to user.user_id
+  instructor               user     @relation(fields: [instructor_id], references: [user_id])
+  price                    Int
+  pool_type                String                          // ← courseType
+  location                 String                          // ← location.address
+  description              String                          // ← focus
+  course_duration          Int                              // ← duration in weeks (parse from "8 weeks")
   study_frequency          Int
   days_study               Int
   number_of_total_sessions Int
+  level                    String                          // ← level (Intermediate, etc.)
+  schedule                 String                          // ← schedule
+  rating                   Float    @default(0.0)           // ← rating
+  students                 Int      @default(0)             // ← students
+  max_students             Int                               // ← maxStudents
+  image                    String?                          // ← image path
   created_at               DateTime @default(now())
   updated_at               DateTime @updatedAt
 
-  // One-to-many relation
   request request[]
 }
+
 
 model request {
   request_id       String          @id @default(cuid())
