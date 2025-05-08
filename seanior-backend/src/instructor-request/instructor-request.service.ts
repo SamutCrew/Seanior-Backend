@@ -1,10 +1,23 @@
+// instructor-request.service.ts
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { InstructorRequestDto } from '../schemas/instructorRequest';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class InstructorRequestService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationService: NotificationService,
+  ) {}
+
+  async getUserName(userId: string): Promise<string> {
+    const user = await this.prisma.user.findUnique({
+      where: { user_id: userId },
+      select: { name: true },
+    });
+    return user?.name || userId;
+  }
 
   async createInstructorRequest(userId: string, dto: InstructorRequestDto) {
     // Check if the user already has any instructor request
@@ -22,7 +35,7 @@ export class InstructorRequestService {
 
     // Map InstructorRequestDto to Prisma.instructor_requestCreateInput
     const prismaInput = {
-      user: { connect: { user_id: userId } }, // Connect the user relation
+      user: { connect: { user_id: userId } },
       full_name: dto.full_name,
       phone_number: dto.phone_number,
       address: dto.address,
@@ -37,9 +50,27 @@ export class InstructorRequestService {
     };
 
     // Create the Instructor request
-    return this.prisma.instructor_request.create({
+    const newRequest = await this.prisma.instructor_request.create({
       data: prismaInput,
     });
+
+    const username = await this.getUserName(userId);
+
+    // Notify all admins about the new instructor request
+    const admins = await this.prisma.user.findMany({
+      where: { user_type: 'admin' },
+    });
+
+    for (const admin of admins) {
+      await this.notificationService.createNotification(
+        admin.user_id,
+        'instructor_request_created',
+        `A new instructor request has been submitted by ${username}`,
+        newRequest.request_id,
+      );
+    }
+
+    return newRequest;
   }
 
   async updateInstructorRequest(requestId: string, dto: InstructorRequestDto) {
@@ -72,15 +103,33 @@ export class InstructorRequestService {
       swimming_instructor_license: dto.swimming_instructor_license,
       teaching_history: dto.teaching_history,
       additional_skills: dto.additional_skills,
-      status: 'pending', // Reset status to pending for resubmission
-      rejection_reason: null, // Clear rejection reason
+      status: 'pending',
+      rejection_reason: null,
     };
 
     // Update the Instructor request
-    return this.prisma.instructor_request.update({
+    const updatedRequest = await this.prisma.instructor_request.update({
       where: { request_id: requestId },
       data: prismaInput,
     });
+
+    const username = await this.getUserName(existingRequest.user_id);
+
+    // Notify all admins about the updated instructor request
+    const admins = await this.prisma.user.findMany({
+      where: { user_type: 'admin' },
+    });
+
+    for (const admin of admins) {
+      await this.notificationService.createNotification(
+        admin.user_id,
+        'instructor_request_updated',
+        `Instructor request ID: ${requestId} has been updated and resubmitted by ${username}`,
+        requestId,
+      );
+    }
+
+    return updatedRequest;
   }
 
   async getInstructorRequests() {
@@ -136,6 +185,14 @@ export class InstructorRequestService {
       data: { user_type: 'instructor' },
     });
 
+    // Notify the user about the approval
+    await this.notificationService.createNotification(
+      request.user_id,
+      'instructor_request_approved',
+      `Your instructor request has been approved.`,
+      requestId,
+    );
+
     return updatedRequest;
   }
 
@@ -153,9 +210,19 @@ export class InstructorRequestService {
     }
 
     // Update the request status to rejected with a reason
-    return this.prisma.instructor_request.update({
+    const updatedRequest = await this.prisma.instructor_request.update({
       where: { request_id: requestId },
       data: { status: 'rejected', rejection_reason: rejectionReason },
     });
+
+    // Notify the user about the rejection
+    await this.notificationService.createNotification(
+      request.user_id,
+      'instructor_request_rejected',
+      `Your instructor request has been rejected. Reason: ${rejectionReason}`,
+      requestId,
+    );
+
+    return updatedRequest;
   }
 }

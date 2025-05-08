@@ -35,6 +35,7 @@ model user {
   attendance       attendance[]
   resource         resource[]
   instructor_requests instructor_request[]
+  notifications    notification[]
 }
 
 model resource {
@@ -174,4 +175,16 @@ model session_progress {
   date_session        DateTime
   created_at          DateTime   @default(now())
   updated_at          DateTime   @updatedAt
+}
+
+model notification {
+  notification_id    String   @id @default(cuid())
+  user_id            String
+  user               user     @relation(fields: [user_id], references: [user_id])
+  type               String   // e.g., "instructor_request_created", "instructor_request_approved"
+  message            String
+  is_read            Boolean  @default(false)
+  related_entity_id  String?  // e.g., request_id for instructor requests
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
 }
