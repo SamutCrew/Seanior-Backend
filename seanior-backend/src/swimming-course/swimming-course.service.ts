@@ -20,10 +20,10 @@ export class SwimmingCourseService {
     });
   }
 
-  async getCoursesByTeacher(teacherId: string) {
+  async getCoursesByInstructor(instructorId: string) {
     return this.prisma.swimming_course.findMany({
       where: {
-        coach_id: teacherId,
+        coach_id: instructorId,
       },
     });
   }
