@@ -40,13 +40,8 @@ export class UsersController {
   @ApiOperation({ summary: 'Check if a user exists on database' })
   @ApiResponse({
     status: 200,
-    description:
-      'User existence checked (returns user data or null if not found)',
+    description: 'User existence checked (returns user data or null if not found)',
     type: createUserDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'User not found',
   })
   @ApiResponse({
     status: 400,
@@ -55,25 +50,18 @@ export class UsersController {
   async checkUser(@Body() body: checkUserDto) {
     try {
       const user = await this.usersService.checkUser(body.firebase_uid);
-      if (!user) {
-        this.logger.log(
-          `User not found for firebase_uid: ${body.firebase_uid}`,
-        );
-        throw new HttpException(
-          { error: 'User not found' },
-          HttpStatus.NOT_FOUND, // Return 404 when user is not found
-        );
-      }
-      this.logger.log(`User found: ${JSON.stringify(user)}`);
-      return user;
+      this.logger.log(
+        user
+          ? `User found: ${JSON.stringify(user)}`
+          : `User not found for firebase_uid: ${body.firebase_uid}`,
+      );
+      this.logger.debug(`Raw database response: ${JSON.stringify(user)}`);
+      return user; // Returns user or null with 200 OK
     } catch (error) {
       this.logger.error(`Failed to check user: ${error.message}`, {
         firebase_uid: body.firebase_uid || 'Not provided',
         stack: error.stack,
       });
-      if (error.status === HttpStatus.NOT_FOUND) {
-        throw error; // Re-throw the 404 error
-      }
       throw new HttpException(
         { error: error.message || 'Internal server error' },
         error.message === 'Firebase UID is required'
