@@ -20,6 +20,9 @@ import { InstructorRequestModule } from './instructor-request/instructor-request
 import { PaymentModule } from './payment/payment.module';
 import { PaymentController } from './payment/payment.controller';
 import { PaymentService } from './payment/payment.service';
+import { NotificationService } from './notification/notification.service';
+import { NotificationController } from './notification/notification.controller';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -31,9 +34,10 @@ import { PaymentService } from './payment/payment.service';
     SwimmingCourseModule,
     InstructorRequestModule,
     PaymentModule,
+    NotificationModule,
   ],
-  controllers: [AppController, InstructorRequestController],
-  providers: [AppService, InstructorRequestService],
+  controllers: [AppController],
+  providers: [AppService],
   // imports: [UsersModule, AuthModule, PrismaModule, ResourceModule],
   // controllers: [AppController, UsersController, ResourceController],
   // providers: [AppService, UsersService, PrismaService, ResourceService],
