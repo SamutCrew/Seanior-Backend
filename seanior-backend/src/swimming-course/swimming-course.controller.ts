@@ -1,10 +1,13 @@
 import {
-  Controller, Get, Post, Body, Logger, Param, Put, Delete,
+  Controller, Get, Post, Body, Logger, Param, Put, Delete, Req,
 } from '@nestjs/common';
 import { SwimmingCourseService } from './swimming-course.service';
 import { ApiOperation } from '@nestjs/swagger';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
+import { ApiBearerAuth } from '@nestjs/swagger';
+import { FirebaseAuthGuard } from '../guards/firebase-auth.guard';
+import { UseGuards } from '@nestjs/common/decorators/core/use-guards.decorator';
 
 @Controller('courses')
 export class SwimmingCourseController {
@@ -33,17 +36,32 @@ export class SwimmingCourseController {
     return this.courseService.createCourse(body);
   }
 
-  @ApiOperation({ summary: 'Update a swimming course' })
-  @Put('update/:id')
-  async updateCourse(@Param('id') courseId: string, @Body() body: UpdateCourseDto) {
-    this.logger.log(`Updating course with ID: ${courseId}`);
-    return this.courseService.updateCourse(courseId, body);
-  }
+@Put('update/:id')
+@UseGuards(FirebaseAuthGuard)
+@ApiBearerAuth()
+@ApiOperation({ summary: 'Update a swimming course' })
+async updateCourse(
+  @Param('id') courseId: string,
+  @Body() body: UpdateCourseDto,
+  @Req() req: any
+) {
+  const userId = req.user.user_id;
+  const userType = req.user.user_type; // ดึงจาก token เช่นเดียวกับ user_id
+  this.logger.log(`User ${userId} (${userType}) updating course ${courseId}`);
+  return this.courseService.updateCourse(courseId, body, userId, userType);
+}
 
   @ApiOperation({ summary: 'Delete a swimming course' })
   @Delete('delete/:id')
-  async deleteCourse(@Param('id') courseId: string) {
-    this.logger.log(`Deleting course with ID: ${courseId}`);
-    return this.courseService.deleteCourse(courseId);
+  @UseGuards(FirebaseAuthGuard) 
+  @ApiBearerAuth()
+  async deleteCourse(
+    @Param('id') courseId: string,
+    @Req() req: any,
+  ) {
+    const userId = req.user.user_id;
+    const userType = req.user.user_type;
+    this.logger.log(`User ${userId} (${userType}) attempting to delete course with ID: ${courseId}`);
+    return this.courseService.deleteCourse(courseId, userId, userType);
   }
 }
