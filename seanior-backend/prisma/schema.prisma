@@ -81,15 +81,16 @@ model swimming_course {
   location                 String                          // ← location.address
   description              String                          // ← focus
   course_duration          Int                              // ← duration in weeks (parse from "8 weeks")
-  study_frequency          Int
+  study_frequency          String                          // ← studyFrequency
   days_study               Int
   number_of_total_sessions Int
   level                    String                          // ← level (Intermediate, etc.)
-  schedule                 String                          // ← schedule
+  schedule                 Json                            // ← schedule
   rating                   Float    @default(0.0)           // ← rating
   students                 Int      @default(0)             // ← students
   max_students             Int                               // ← maxStudents
-  image                    String?                          // ← image path
+  course_image             String?                           // ← course image path
+  pool_image               String?                           // ← pool image path
   created_at               DateTime @default(now())
   updated_at               DateTime @updatedAt
 

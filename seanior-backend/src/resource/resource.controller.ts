@@ -69,7 +69,7 @@ export class ResourceController {
     if (!file) {
       throw new BadRequestException('File is required');
     }
-    const containerName = 'resoucre';
+    const containerName = 'resource'; // Fixed typo from 'resoucre' to 'resource'
     try {
       const result = await this.resourceService.uploadResource(
         file,
@@ -115,7 +115,7 @@ export class ResourceController {
     if (!file) {
       throw new BadRequestException('File is required');
     }
-    const containerName = 'resoucre';
+    const containerName = 'resource'; // Fixed typo from 'resoucre' to 'resource'
     try {
       const result = await this.resourceService.uploadProfileImage(
         file,
@@ -161,7 +161,7 @@ export class ResourceController {
     if (!file) {
       throw new BadRequestException('File is required');
     }
-    const containerName = 'resoucre';
+    const containerName = 'resource'; // Fixed typo from 'resoucre' to 'resource'
     try {
       const result = await this.resourceService.uploadIdCard(
         file,
@@ -207,7 +207,7 @@ export class ResourceController {
     if (!file) {
       throw new BadRequestException('File is required');
     }
-    const containerName = 'resoucre';
+    const containerName = 'resource'; // Fixed typo from 'resoucre' to 'resource'
     try {
       const result = await this.resourceService.uploadSwimmingLicense(
         file,
@@ -216,6 +216,98 @@ export class ResourceController {
       );
       return {
         message: 'Swimming instructor license uploaded successfully',
+        resource_url: result.resourceUrl,
+        resource_id: result.resourceId,
+      };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Multipart')) {
+        throw new BadRequestException('Malformed multipart form data');
+      }
+      throw error;
+    }
+  }
+
+  @Post('upload-course-image/:courseId')
+  @ApiOperation({ summary: 'Upload a course image for a specific course' })
+  @ApiConsumes('multipart/form-data')
+  @ApiParam({
+    name: 'courseId',
+    description: 'The ID of the course uploading the course image',
+  })
+  @ApiBody({
+    description: 'Course image file to upload',
+    type: UploadResourceDto,
+  })
+  @ApiOkResponse({
+    type: ResourceResponseDto,
+    description: 'Course image uploaded successfully',
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid file, course ID, or malformed request',
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadCourseImage(
+    @UploadedFile() file: Express.Multer.File,
+    @Param('courseId') courseId: string,
+  ) {
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+    const containerName = 'resource'; // Fixed typo from 'resoucre' to 'resource'
+    try {
+      const result = await this.resourceService.uploadCourseImage(
+        file,
+        courseId,
+        containerName,
+      );
+      return {
+        message: 'Course image uploaded successfully',
+        resource_url: result.resourceUrl,
+        resource_id: result.resourceId,
+      };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Multipart')) {
+        throw new BadRequestException('Malformed multipart form data');
+      }
+      throw error;
+    }
+  }
+
+  @Post('upload-pool-image/:courseId')
+  @ApiOperation({ summary: 'Upload a pool image for a specific course' })
+  @ApiConsumes('multipart/form-data')
+  @ApiParam({
+    name: 'courseId',
+    description: 'The ID of the course uploading the pool image',
+  })
+  @ApiBody({
+    description: 'Pool image file to upload',
+    type: UploadResourceDto,
+  })
+  @ApiOkResponse({
+    type: ResourceResponseDto,
+    description: 'Pool image uploaded successfully',
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid file, course ID, or malformed request',
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadPoolImage(
+    @UploadedFile() file: Express.Multer.File,
+    @Param('courseId') courseId: string,
+  ) {
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+    const containerName = 'resource'; // Fixed typo from 'resoucre' to 'resource'
+    try {
+      const result = await this.resourceService.uploadPoolImage(
+        file,
+        courseId,
+        containerName,
+      );
+      return {
+        message: 'Pool image uploaded successfully',
         resource_url: result.resourceUrl,
         resource_id: result.resourceId,
       };
@@ -239,7 +331,7 @@ export class ResourceController {
   })
   @ApiBadRequestResponse({ description: 'Resource not found or invalid URL' })
   async deleteResource(@Param('resourceId') resourceId: string) {
-    const containerName = 'resoucre';
+    const containerName = 'resource'; // Fixed typo from 'resoucre' to 'resource'
     await this.resourceService.deleteResource(resourceId, containerName);
     return { message: 'Resource deleted successfully' };
   }

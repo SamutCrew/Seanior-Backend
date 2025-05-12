@@ -10,6 +10,7 @@ import {
   Logger,
   UseGuards,
   Param,
+  Request,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import {
@@ -40,7 +41,8 @@ export class UsersController {
   @ApiOperation({ summary: 'Check if a user exists on database' })
   @ApiResponse({
     status: 200,
-    description: 'User existence checked (returns user data or null if not found)',
+    description:
+      'User existence checked (returns user data or null if not found)',
     type: createUserDto,
   })
   @ApiResponse({
@@ -56,7 +58,7 @@ export class UsersController {
           : `User not found for firebase_uid: ${body.firebase_uid}`,
       );
       this.logger.debug(`Raw database response: ${JSON.stringify(user)}`);
-      return user; // Returns user or null with 200 OK
+      return user;
     } catch (error) {
       this.logger.error(`Failed to check user: ${error.message}`, {
         firebase_uid: body.firebase_uid || 'Not provided',
@@ -105,6 +107,7 @@ export class UsersController {
       );
     }
   }
+
   @ApiOperation({ summary: 'Get all instructors from database' })
   @ApiResponse({
     status: 200,
@@ -115,13 +118,12 @@ export class UsersController {
     status: 401,
     description: 'Unauthorized',
   })
-
   @UseGuards(FirebaseAuthGuard)
   @ApiBearerAuth()
   @Get('retrieve/getAllInstructors')
   async getAllInstructors() {
     try {
-      const instructors = await this.usersService.getAllInstructors(); // <-- ไปเพิ่มใน service ด้วยนะ
+      const instructors = await this.usersService.getAllInstructors();
       return instructors;
     } catch (error) {
       this.logger.error(`Failed to retrieve instructors: ${error.message}`, {
@@ -146,6 +148,10 @@ export class UsersController {
     description: 'Invalid input',
   })
   @ApiResponse({
+    status: 403,
+    description: 'Forbidden: You are not allowed to update this user',
+  })
+  @ApiResponse({
     status: 404,
     description: 'User not found',
   })
@@ -156,12 +162,16 @@ export class UsersController {
   async updateUser(
     @Param('userId') userId: string,
     @Body() userData: updateUserDataDto,
+    @Request() req: any, // Access the request object to get the authenticated user
   ) {
     try {
+      const requestingUser = req.user; // From FirebaseAuthGuard
       const updatedUser = await this.usersService.updateUserData(
         userId,
         userData,
-      ); // Fixed method name
+        requestingUser.user_id, // Pass the requesting user's user_id
+        requestingUser.user_type, // Pass the requesting user's user_type
+      );
       return updatedUser;
     } catch (error) {
       this.logger.error(`Failed to update user: ${error.message}`, {
@@ -172,6 +182,10 @@ export class UsersController {
           { error: 'User not found' },
           HttpStatus.NOT_FOUND,
         );
+      } else if (
+        error.message === 'Forbidden: You are not allowed to update this user'
+      ) {
+        throw new HttpException({ error: error.message }, HttpStatus.FORBIDDEN);
       }
       throw new HttpException(
         { error: 'Database error', details: error.message },

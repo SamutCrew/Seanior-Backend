@@ -1,4 +1,3 @@
-// users.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -59,17 +58,17 @@ export class UsersService {
           where: { firebase_uid: userData.firebase_uid },
         });
         if (existingUser) {
-          return existingUser; // Return existing user
+          return existingUser;
         }
         throw new Error('User not found after unique constraint failure');
       }
       this.logger.error(`Failed to create user: ${error.message}`, {
         stack: error.stack,
       });
-      throw error; // Rethrow other errors
+      throw error;
     }
   }
-  
+
   async getUserById(userId: string) {
     if (!userId) {
       throw new Error('User ID is required');
@@ -80,7 +79,12 @@ export class UsersService {
     });
   }
 
-  async updateUserData(userId: string, userData: updateUserDataDto) {
+  async updateUserData(
+    userId: string,
+    userData: updateUserDataDto,
+    requestingUserId: string, // ID of the user making the request
+    requestingUserType: string, // Type of the user making the request
+  ) {
     if (!userId) {
       throw new Error('User ID is required');
     }
@@ -96,7 +100,18 @@ export class UsersService {
         throw new Error('User not found');
       }
 
-      // Step 2: Prepare data for database update
+      // Step 2: Authorization check
+      const isAdmin = requestingUserType === 'admin';
+      const isSameUser = requestingUserId === userId;
+
+      if (!isAdmin && !isSameUser) {
+        this.logger.warn(
+          `Unauthorized update attempt: requestingUserId=${requestingUserId}, targetUserId=${userId}, userType=${requestingUserType}`,
+        );
+        throw new Error('Forbidden: You are not allowed to update this user');
+      }
+
+      // Step 3: Prepare data for database update
       const updateData: any = {
         ...(userData.email && { email: userData.email }),
         ...(userData.name && { name: userData.name }),
@@ -108,13 +123,13 @@ export class UsersService {
         ...(userData.user_type && { user_type: userData.user_type }),
       };
 
-      // Step 3: Update the user in the database
+      // Step 4: Update the user in the database
       const updatedUser = await this.prisma.user.update({
         where: { user_id: userId },
         data: updateData,
       });
 
-      // Step 4: Update Firebase user profile if necessary
+      // Step 5: Update Firebase user profile if necessary
       if (userData.email || userData.name || userData.profile_img) {
         try {
           const firebaseUpdate: admin.auth.UpdateRequest = {
@@ -150,13 +165,14 @@ export class UsersService {
         error: error.message,
         stack: error.stack,
       });
-      throw error; // Let the controller handle the error
+      throw error;
     }
   }
 
   async getAllUsers() {
     return this.prisma.user.findMany({});
   }
+
   async getAllInstructors() {
     return this.prisma.user.findMany({
       where: {

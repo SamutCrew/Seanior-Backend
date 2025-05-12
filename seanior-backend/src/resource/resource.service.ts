@@ -90,7 +90,6 @@ export class ResourceService {
       throw new BadRequestException(`User with ID ${userId} not found`);
     }
 
-    // Check for existing profile image and delete it
     const existingProfileImages = await this.prisma.resource.findMany({
       where: {
         user_id: userId,
@@ -100,12 +99,10 @@ export class ResourceService {
       },
     });
 
-    // Delete all existing profile images
     for (const existingImage of existingProfileImages) {
       await this.deleteResource(existingImage.resource_id, containerName);
     }
 
-    // Use deterministic name: user_id + "_profile"
     const extension = file.originalname.split('.').pop();
     if (!extension) {
       throw new BadRequestException('File must have a valid extension');
@@ -121,7 +118,6 @@ export class ResourceService {
 
     const sizeInKiB = file.size / 1024;
 
-    // Create a new resource entry
     const resource = await this.prisma.resource.create({
       data: {
         resource_id: uuid(),
@@ -133,7 +129,6 @@ export class ResourceService {
       },
     });
 
-    // Update user's profile_img
     await this.prisma.user.update({
       where: { user_id: userId },
       data: { profile_img: resourceUrl },
@@ -155,7 +150,6 @@ export class ResourceService {
       throw new BadRequestException(`User with ID ${userId} not found`);
     }
 
-    // Check for existing ID card and delete it (optional, depending on your requirements)
     const existingIdCards = await this.prisma.resource.findMany({
       where: {
         user_id: userId,
@@ -165,12 +159,10 @@ export class ResourceService {
       },
     });
 
-    // Delete existing ID cards to ensure only one ID card exists at a time
     for (const existingIdCard of existingIdCards) {
       await this.deleteResource(existingIdCard.resource_id, containerName);
     }
 
-    // Use deterministic name: user_id + "_idcard"
     const extension = file.originalname.split('.').pop();
     if (!extension) {
       throw new BadRequestException('File must have a valid extension');
@@ -186,7 +178,6 @@ export class ResourceService {
 
     const sizeInKiB = file.size / 1024;
 
-    // Create a new resource entry
     const resource = await this.prisma.resource.create({
       data: {
         resource_id: uuid(),
@@ -214,7 +205,6 @@ export class ResourceService {
       throw new BadRequestException(`User with ID ${userId} not found`);
     }
 
-    // Check for existing swimming license and delete it (optional, depending on your requirements)
     const existingLicenses = await this.prisma.resource.findMany({
       where: {
         user_id: userId,
@@ -224,12 +214,10 @@ export class ResourceService {
       },
     });
 
-    // Delete existing licenses to ensure only one license exists at a time
     for (const existingLicense of existingLicenses) {
       await this.deleteResource(existingLicense.resource_id, containerName);
     }
 
-    // Use deterministic name: user_id + "_license"
     const extension = file.originalname.split('.').pop();
     if (!extension) {
       throw new BadRequestException('File must have a valid extension');
@@ -245,7 +233,6 @@ export class ResourceService {
 
     const sizeInKiB = file.size / 1024;
 
-    // Create a new resource entry
     const resource = await this.prisma.resource.create({
       data: {
         resource_id: uuid(),
@@ -255,6 +242,128 @@ export class ResourceService {
         resource_url: resourceUrl,
         resource_size: sizeInKiB,
       },
+    });
+
+    return { resourceUrl, resourceId: resource.resource_id };
+  }
+
+  async uploadCourseImage(
+    file: Express.Multer.File,
+    courseId: string,
+    containerName: string,
+  ) {
+    const course = await this.prisma.swimming_course.findUnique({
+      where: { course_id: courseId },
+    });
+
+    if (!course) {
+      throw new BadRequestException(`Course with ID ${courseId} not found`);
+    }
+
+    // Check for existing course image and delete it
+    const existingCourseImages = await this.prisma.resource.findMany({
+      where: {
+        resource_name: {
+          startsWith: `${courseId}_course.`,
+        },
+      },
+    });
+
+    for (const existingImage of existingCourseImages) {
+      await this.deleteResource(existingImage.resource_id, containerName);
+    }
+
+    const extension = file.originalname.split('.').pop();
+    if (!extension) {
+      throw new BadRequestException('File must have a valid extension');
+    }
+    const fileName = `${courseId}_course.${extension}`;
+    const blockBlobClient = await this.getBlobClient(containerName, fileName);
+
+    await blockBlobClient.uploadData(file.buffer, {
+      blobHTTPHeaders: { blobContentType: file.mimetype },
+    });
+
+    const resourceUrl = blockBlobClient.url;
+
+    const sizeInKiB = file.size / 1024;
+
+    const resource = await this.prisma.resource.create({
+      data: {
+        resource_id: uuid(),
+        user_id: course.instructor_id, // Associate with the course instructor
+        resource_name: fileName,
+        resource_type: file.mimetype,
+        resource_url: resourceUrl,
+        resource_size: sizeInKiB,
+      },
+    });
+
+    // Update the course with the new image URL
+    await this.prisma.swimming_course.update({
+      where: { course_id: courseId },
+      data: { course_image: resourceUrl },
+    });
+
+    return { resourceUrl, resourceId: resource.resource_id };
+  }
+
+  async uploadPoolImage(
+    file: Express.Multer.File,
+    courseId: string,
+    containerName: string,
+  ) {
+    const course = await this.prisma.swimming_course.findUnique({
+      where: { course_id: courseId },
+    });
+
+    if (!course) {
+      throw new BadRequestException(`Course with ID ${courseId} not found`);
+    }
+
+    // Check for existing pool image and delete it
+    const existingPoolImages = await this.prisma.resource.findMany({
+      where: {
+        resource_name: {
+          startsWith: `${courseId}_pool.`,
+        },
+      },
+    });
+
+    for (const existingImage of existingPoolImages) {
+      await this.deleteResource(existingImage.resource_id, containerName);
+    }
+
+    const extension = file.originalname.split('.').pop();
+    if (!extension) {
+      throw new BadRequestException('File must have a valid extension');
+    }
+    const fileName = `${courseId}_pool.${extension}`;
+    const blockBlobClient = await this.getBlobClient(containerName, fileName);
+
+    await blockBlobClient.uploadData(file.buffer, {
+      blobHTTPHeaders: { blobContentType: file.mimetype },
+    });
+
+    const resourceUrl = blockBlobClient.url;
+
+    const sizeInKiB = file.size / 1024;
+
+    const resource = await this.prisma.resource.create({
+      data: {
+        resource_id: uuid(),
+        user_id: course.instructor_id, // Associate with the course instructor
+        resource_name: fileName,
+        resource_type: file.mimetype,
+        resource_url: resourceUrl,
+        resource_size: sizeInKiB,
+      },
+    });
+
+    // Update the course with the new image URL
+    await this.prisma.swimming_course.update({
+      where: { course_id: courseId },
+      data: { pool_image: resourceUrl },
     });
 
     return { resourceUrl, resourceId: resource.resource_id };
