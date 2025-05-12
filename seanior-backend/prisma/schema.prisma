@@ -36,6 +36,7 @@ model user {
   resource         resource[]
   instructor_requests instructor_request[]
   notifications    notification[]
+  bookings         Booking[] @relation("CustomerBookings")
 }
 
 model resource {
@@ -72,7 +73,7 @@ model instructor_request {
 }
 
 model swimming_course {
-  course_id                String   @id @default(cuid())
+course_id                String   @id @default(cuid())
   course_name              String                          // ← title
   instructor_id            String                          // ← ref to user.user_id
   instructor               user     @relation(fields: [instructor_id], references: [user_id])
@@ -95,6 +96,8 @@ model swimming_course {
   updated_at               DateTime @updatedAt
 
   request request[]
+
+  bookings     Booking[]
 }
 
 
@@ -193,4 +196,30 @@ model notification {
   related_entity_id  String?  // e.g., request_id for instructor requests
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
+}
+
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  FAILED
+  CANCELLED
+}
+
+// --- เพิ่ม Model นี้ ---
+model Booking {
+  id                      String        @id @default(cuid())
+  status                  BookingStatus @default(PENDING_PAYMENT)
+  amount                  Int           
+  currency                String        @default("thb")
+  stripeCheckoutSessionId String?       @unique 
+  courseId                String        
+  course                  swimming_course @relation(fields: [courseId], references: [course_id]) // เชื่อมไปที่ swimming_course โดยใช้ course_id
+
+  userId                  String?       
+  user                    user?         @relation("CustomerBookings", fields: [userId], references: [user_id]) 
+
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  @@map("bookings") // ชื่อตารางใน Database คือ bookings
 }
