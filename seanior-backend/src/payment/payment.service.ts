@@ -81,7 +81,6 @@ export class PaymentService {
     }
 
     try {
-      // 3. สร้าง Stripe Checkout Session โดยใส่ booking.id ใน metadata
       const session = await this.stripe.checkout.sessions.create({
         payment_method_types: ['promptpay', 'card'], // เพิ่ม 'card' ด้วยก็ได้
         line_items: [
