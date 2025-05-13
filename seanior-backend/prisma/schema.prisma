@@ -31,7 +31,7 @@ model user {
 
   // One-to-many relation
   swimming_courses swimming_course[]
-  request          request[]
+  request          request[] @relation("StudentRequests")
   attendance       attendance[]
   resource         resource[]
   instructor_requests instructor_request[]
@@ -102,20 +102,23 @@ course_id                String   @id @default(cuid())
 
 
 model request {
-  request_id       String          @id @default(cuid())
-  course_id        String
-  Course           swimming_course @relation(fields: [course_id], references: [course_id])
-  student_id       String
-  student          user            @relation(fields: [student_id], references: [user_id])
-  request_price    Int
-  request_location String
-  status           String
-  request_date     DateTime
-  created_at       DateTime        @default(now())
-  updated_at       DateTime        @updatedAt
+  request_id                String          @id @default(cuid())
+  course_id                 String
+  Course                    swimming_course @relation(fields: [course_id], references: [course_id])
+  student_id                String
+  student                   user     @relation("StudentRequests", fields: [student_id], references: [user_id])
+  request_price             Int
+  request_location          String
+  status                    RequestStatus @default(PENDING_APPROVAL)
+  request_date              DateTime
+  requestDayOfWeek          String
+  requestTimeSlot           String  
+  created_at                DateTime        @default(now())
+  updated_at                DateTime        @updatedAt
 
   // One-to-one relation (must be unique on the other side)
   enrollment enrollment?
+  booking    Booking?   @relation("RequestToBooking")
 }
 
 model enrollment {
@@ -205,6 +208,14 @@ enum BookingStatus {
   CANCELLED
 }
 
+enum RequestStatus {
+  PENDING_APPROVAL         
+  APPROVED_PENDING_PAYMENT 
+  REJECTED_BY_INSTRUCTOR   
+  PAID_AND_ENROLLED        
+  CANCELLED_BY_STUDENT     
+}
+
 // --- เพิ่ม Model นี้ ---
 model Booking {
   id                      String        @id @default(cuid())
@@ -217,6 +228,8 @@ model Booking {
 
   userId                  String?       
   user                    user?         @relation("CustomerBookings", fields: [userId], references: [user_id]) 
+  requestId               String?       @unique // ทำให้ 1 request มีได้แค่ 1 booking
+  request                 request?      @relation("RequestToBooking", fields: [requestId], references: [request_id])
 
   createdAt               DateTime      @default(now())
   updatedAt               DateTime      @updatedAt

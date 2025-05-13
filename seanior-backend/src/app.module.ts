@@ -23,6 +23,7 @@ import { PaymentService } from './payment/payment.service';
 import { NotificationService } from './notification/notification.service';
 import { NotificationController } from './notification/notification.controller';
 import { NotificationModule } from './notification/notification.module';
+import { CourseRequestModule } from './course-request/course-request.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { NotificationModule } from './notification/notification.module';
     InstructorRequestModule,
     PaymentModule,
     NotificationModule,
+    CourseRequestModule,
   ],
   controllers: [AppController],
   providers: [AppService],
