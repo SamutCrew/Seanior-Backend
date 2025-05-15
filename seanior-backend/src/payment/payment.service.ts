@@ -12,7 +12,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service'; // <--- เพิ่ม Import PrismaService
-import { BookingStatus, RequestStatus, Prisma  } from '@prisma/client'; // <--- เพิ่ม Import BookingStatus จาก Prisma
+import { BookingStatus, RequestStatus, Prisma, EnrollmentStatus   } from '@prisma/client'; // <--- เพิ่ม Import BookingStatus จาก Prisma
 
 @Injectable()
 export class PaymentService {
@@ -237,6 +237,7 @@ export class PaymentService {
         },
       });
       this.logger.log(`Updated booking ${updatedBooking.id} status to CONFIRMED`);
+
       // 2. --- ADD: อัปเดตสถานะ Request เป็น PAID_AND_ENROLLED ---
       if (requestId) { // ตรวจสอบว่ามี requestId ใน metadata หรือไม่
         const updatedRequest = await this.prisma.request.update({
@@ -244,25 +245,59 @@ export class PaymentService {
           data: {
             status: RequestStatus.PAID_AND_ENROLLED,
           },
+          include: { // <<<--- เพิ่ม include Course ที่นี่ เพื่อเอา course_duration
+              Course: {
+                  select: { 
+                    course_id: true,                 // มีอยู่แล้ว (ถ้าคุณเพิ่มตาม Error ก่อนหน้า)
+                    course_duration: true,         // มีอยู่แล้ว
+                    number_of_total_sessions: true, // มีอยู่แล้ว
+                    allowed_absence_buffer: true   // <<<--- เพิ่มบรรทัดนี้เข้าไป
+                  }
+                  
+              }
+          }
         });
         this.logger.log(`Updated request ${updatedRequest.request_id} status to PAID_AND_ENROLLED`);
 
-        // 3. --- (Future/Optional) สร้าง Enrollment Record ---
-        // จาก Schema ของคุณ model enrollment มี request_id @unique
-        // คุณสามารถสร้าง enrollment record ตรงนี้ได้เลย
-        // await this.prisma.enrollment.create({
-        //   data: {
-        //     request_id: requestId,
-        //     start_date: updatedRequest.request_date, // หรือวันเริ่มเรียนจริงๆ
-        //     // end_date: ...คำนวณจาก course duration...
-        //     status: 'ACTIVE', // หรือ 'ENROLLED'
-        //     request_date: updatedRequest.request_date // หรือ new Date()
-        //   }
-        // });
-        // this.logger.log(`Created enrollment for request ${requestId}`);
+        // --- 3. สร้าง Enrollment Record โดยตรงที่นี่ ---
+        if (updatedRequest && updatedRequest.Course) {
+              try {
+                const startDate = updatedRequest.request_date;
+                const courseData = updatedRequest.Course;
 
-      } else {
-        this.logger.warn(`Webhook for booking ${bookingId} is missing requestId in metadata. Cannot update request status.`);
+                const targetSessions = courseData.number_of_total_sessions;
+                // คำนวณ max_sessions_allowed
+                // ถ้ามี allowed_absence_buffer ใน courseData และเป็นตัวเลข ให้ใช้ค่านั้น
+                // ถ้าไม่ ให้ default เป็น targetSessions + 2 (หรือค่าที่คุณต้องการ)
+                const absenceBuffer = (typeof courseData.allowed_absence_buffer === 'number' && courseData.allowed_absence_buffer >= 0)
+                                      ? courseData.allowed_absence_buffer
+                                      : 2; // Default เผื่อขาดได้ 2 ครั้ง
+                const maxAllowed = targetSessions + absenceBuffer;
+
+                const newEnrollment = await this.prisma.enrollment.create({
+                  data: {
+                    request_id: requestId,
+                    start_date: startDate,
+                    status: EnrollmentStatus.ACTIVE, // <<<--- ใช้ Enum (ต้อง Import EnrollmentStatus from '@prisma/client')
+                    request_date: startDate,
+                    target_sessions_to_complete: targetSessions, // <<<--- เพิ่ม
+                    max_sessions_allowed: maxAllowed,          // <<<--- เพิ่ม
+                    // actual_sessions_attended จะเป็น 0 โดย Default จาก Schema
+                  },
+                });
+                this.logger.log(`Created enrollment ${newEnrollment.enrollment_id} for request ${requestId} with target ${targetSessions} sessions, max ${maxAllowed} allowed.`);
+              } catch (enrollmentError) {
+            if (enrollmentError instanceof Prisma.PrismaClientKnownRequestError && enrollmentError.code === 'P2002') {
+               this.logger.warn(`Enrollment for request ID ${requestId} already exists or unique constraint failed.`);
+            } else {
+               this.logger.error(`Failed to create enrollment for request ${requestId}: ${enrollmentError.message}`, enrollmentError.stack);
+            }
+          }
+        } else { // จบ if (updatedRequest)
+          this.logger.warn(`Could not find request ${requestId} to create enrollment after payment (it might have been deleted or data is inconsistent).`);
+        }
+      } else { // จบ if (requestId)
+        this.logger.warn(`Webhook for booking ${bookingId} is missing requestId in metadata. Cannot update request or create enrollment.`);
       }
         // *** TODO: ส่ง Email ยืนยันการลงทะเบียนและชำระเงินสำเร็จ ***
       console.log(`TODO: Send enrollment & payment confirmation email for booking ${bookingId}`);
