@@ -1,5 +1,16 @@
 // src/course-request/course-request.controller.ts
-import { Controller, Post, Body, Req, UseGuards, Logger, Get, UnauthorizedException } from '@nestjs/common';
+import { 
+  Controller, 
+  Post, 
+  Body, 
+  Req, 
+  UseGuards, 
+  Logger, 
+  Get, 
+  UnauthorizedException,
+  Put,
+  Param,
+  ForbiddenException, } from '@nestjs/common';
 import { CourseRequestService } from './course-request.service';
 import { CreateCourseRequestDto } from '../schemas/course-request';
 import { FirebaseAuthGuard } from '../guards/firebase-auth.guard'; // <<<--- Import Guard ของคุณ
@@ -7,6 +18,7 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiTags,
+  ApiParam 
 } from '@nestjs/swagger'; // <<<--- Import Swagger Decorators
 
 
@@ -65,5 +77,78 @@ export class CourseRequestController {
       this.logger.warn(`User ${userId} with type ${userType} attempted to access restricted resource.`);
       throw new UnauthorizedException('Only instructors or admins can access this resource.');
     }
+  }
+
+  @Put(':requestId/approve') // PUT /course-requests/{requestId}/approve
+  @ApiOperation({ summary: 'Approve a pending course request (instructor/admin)' })
+  @ApiParam({ name: 'requestId', description: 'The ID of the request to approve', type: String })
+  async approveCourseRequest(
+    @Param('requestId') requestId: string,
+    @Req() req: any,
+  ) {
+    const actingUserId = req.user?.user_id;
+    const actingUserType = req.user?.user_type;
+
+    if (!actingUserId) {
+      throw new UnauthorizedException('User not authenticated or user ID missing.');
+    }
+
+    // การตรวจสอบ Role เบื้องต้น (Service จะตรวจสอบสิทธิ์ความเป็นเจ้าของคอร์สอีกที)
+    if (actingUserType !== 'instructor' && actingUserType !== 'admin') {
+      throw new ForbiddenException('Only instructors or admins can approve requests.');
+    }
+
+    this.logger.log(`User ${actingUserId} (Type: ${actingUserType}) attempting to approve request ID: ${requestId}`);
+    return this.courseRequestService.approveRequest(requestId, actingUserId, actingUserType);
+  }
+
+  @Put(':requestId/reject') // PUT /course-requests/{requestId}/reject
+  @ApiOperation({ summary: 'Reject a pending course request (instructor/admin)' })
+  @ApiParam({ name: 'requestId', description: 'The ID of the request to reject', type: String })
+  // @ApiBody({ type: RejectCourseRequestDto, required: false }) // <--- ถ้าคุณสร้าง DTO นี้
+  async rejectCourseRequest(
+    @Param('requestId') requestId: string,
+    @Req() req: any,
+    // @Body() rejectDto: RejectCourseRequestDto, // <--- ถ้าคุณสร้าง DTO นี้
+  ) {
+    const actingUserId = req.user?.user_id;
+    const actingUserType = req.user?.user_type;
+    // const rejectionReason = rejectDto?.rejectionReason; // <--- ถ้าคุณสร้าง DTO นี้
+
+    if (!actingUserId) {
+      throw new UnauthorizedException('User not authenticated or user ID missing.');
+    }
+
+    if (actingUserType !== 'instructor' && actingUserType !== 'admin') {
+      throw new ForbiddenException('Only instructors or admins can reject requests.');
+    }
+
+    this.logger.log(`User ${actingUserId} (Type: ${actingUserType}) attempting to reject request ID: ${requestId}`);
+    return this.courseRequestService.rejectRequest(
+        requestId,
+        actingUserId,
+        actingUserType
+        // rejectionReason // <--- ถ้าคุณสร้าง DTO นี้
+        );
+  }
+
+  @Get('my-requests') // GET /course-requests/my-requests
+  @ApiOperation({ summary: 'Get all course requests for the logged-in student' })
+  async getMyRequests(@Req() req: any) {
+    const studentId = req.user?.user_id; // ID ของ Student ที่ Login อยู่
+
+    if (!studentId) {
+      this.logger.warn('Attempt to get student requests without studentId');
+      throw new UnauthorizedException('User not authenticated or user ID missing.');
+    }
+
+    // โดยทั่วไป Endpoint นี้สำหรับ "นักเรียน" ทุกคนที่ Login แล้ว ไม่จำเป็นต้องเช็ค Role เพิ่มเติม
+    // นอกจากว่าคุณจะมี User Type อื่นๆ ที่ไม่ใช่ Student และไม่ควรเห็นหน้านี้
+    // if (req.user?.user_type !== 'student' && req.user?.user_type !== 'user') {
+    //   throw new ForbiddenException('Only students can view their requests.');
+    // }
+
+    this.logger.log(`Student ${studentId} fetching their course requests.`);
+    return this.courseRequestService.getRequestsByStudent(studentId);
   }
 }

@@ -10,20 +10,17 @@ import {
   HttpStatus, // ค่า Status Code ต่างๆ
   BadRequestException, // ใช้โยน Error
   Logger, // เพิ่ม Logger
-  UseGuards, // ถ้าต้องการให้ Endpoint สร้าง Session ต้อง Login ก่อน
+  UseGuards,
+  UnauthorizedException, // ใช้โยน Error ถ้าไม่ Login
+   // ถ้าต้องการให้ Endpoint สร้าง Session ต้อง Login ก่อน
   // Param, // ถ้ามี Parameter ใน Path
 } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger'; // ถ้าใช้ Swagger
 import { Request, Response } from 'express'; // Import Request/Response จาก express
 import { FirebaseAuthGuard } from '../guards/firebase-auth.guard'; // Import Guard ถ้าต้องการบังคับ Login
+import { CreateCheckoutSessionForRequestDto } from '../schemas/course-request'; // Import DTO สำหรับ Checkout Session
 // import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger'; // ถ้าใช้ Swagger
-
-// สร้าง DTO ง่ายๆ สำหรับรับ course_id
-class CreateCheckoutSessionDto {
-  course_id: string;
-  // อาจจะมี userId ถ้า Frontend ส่งมา หรือถ้าไม่ใช้ Guard
-}
 
 @Controller('payment')
 export class PaymentController {
@@ -32,32 +29,22 @@ export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
 
   // --- Endpoint สร้าง Checkout Session (แก้ไขจาก Get เป็น Post) ---
-  @UseGuards(FirebaseAuthGuard) // เอา Comment ออก ถ้าต้องการให้ต้อง Login ก่อน
-  @ApiBearerAuth()             // สำหรับ Swagger ถ้าใช้ Guard
-  @ApiOperation({ summary: 'Create a Stripe Checkout Session for a course' }) // สำหรับ Swagger
-  @Post('create-checkout-session') // เปลี่ยนเป็น POST เพื่อรับ Body
+  @Post('create-checkout-session')
+  @UseGuards(FirebaseAuthGuard) // <<<--- Endpoint นี้ต้อง Login แน่นอน
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create Stripe Checkout Session for an approved course request' })
   async createCheckoutSession(
-    @Body() createCheckoutSessionDto: CreateCheckoutSessionDto,
-    @Req() req: any, // เอา Comment ออก ถ้าใช้ Guard เพื่อดึง userId จาก req.user
+    @Body() dto: CreateCheckoutSessionForRequestDto, // <<<--- ใช้ DTO ใหม่
+    @Req() req: any,
   ) {
-    this.logger.log(
-      `Received request to create checkout session for course: ${createCheckoutSessionDto.course_id}`,
-    );
-    if (!createCheckoutSessionDto.course_id) {
-      throw new BadRequestException('Missing course_id in request body');
+    const studentId = req.user?.user_id;
+    if (!studentId) {
+      throw new UnauthorizedException('User not authenticated or user ID missing.');
     }
-
-    // --- ดึง userId (ถ้ามีการ Login) ---
-    const userId = req.user?.user_id; // ตัวอย่างการดึงจาก Guard (อาจจะต้องปรับตามโครงสร้าง req.user ของคุณ)
-    if (!userId) {
-      throw new BadRequestException('User ID not found in request.');
-    }
-    // --- เรียก Service method ที่แก้ไขแล้ว ---
-    return this.paymentService.createCourseCheckoutSession(
-      createCheckoutSessionDto.course_id,
-      userId, // ส่ง userId ไปด้วย (ถ้ามี)
-    );
+    // เราจะส่ง requestId และ studentId (คนที่จ่ายเงิน) ไปให้ Service
+    return this.paymentService.createCheckoutSessionForRequest(dto.requestId, studentId);
   }
+
 
   // --- Endpoint สำหรับรับ Webhook จาก Stripe ---
   @ApiOperation({ summary: 'Handle incoming Stripe webhooks' }) // สำหรับ Swagger
