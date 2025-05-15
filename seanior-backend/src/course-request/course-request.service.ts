@@ -6,6 +6,8 @@ import {
   ConflictException,
   BadRequestException, // <<<--- ตรวจสอบว่า Import มาแล้ว
   InternalServerErrorException,
+  UnauthorizedException,
+  ForbiddenException
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 // ตรวจสอบ Path ของ DTO ให้ถูกต้อง อาจจะเป็น './dto/create-course-request.dto'
@@ -248,6 +250,163 @@ export class CourseRequestService {
     } catch (error) {
       this.logger.error(`Failed to fetch all pending requests for admin: ${error.message}`, error.stack);
       throw new InternalServerErrorException('Could not fetch all pending requests.');
+    }
+  }
+
+  async approveRequest(requestId: string, actingUserId: string, actingUserType: string) {
+    this.logger.log(`User ${actingUserId} (Type: ${actingUserType}) attempting to approve request ID: ${requestId}`);
+
+    // 1. ดึงข้อมูล Request พร้อมข้อมูล Course เพื่อเช็ค Instructor
+    const requestToApprove = await this.prisma.request.findUnique({
+      where: { request_id: requestId },
+      include: {
+        Course: { // ดึงข้อมูลคอร์สเพื่อเอา instructor_id
+          select: { instructor_id: true, course_name: true },
+        },
+        student: { // ดึงข้อมูลนักเรียนเผื่อต้องใช้ (เช่น ส่ง notification)
+            select: { user_id: true, email: true, name: true }
+        }
+      },
+    });
+
+    // 2. ตรวจสอบว่า Request มีอยู่จริงหรือไม่
+    if (!requestToApprove) {
+      this.logger.warn(`Approve failed: Request ID ${requestId} not found.`);
+      throw new NotFoundException(`Request with ID ${requestId} not found.`);
+    }
+
+    // 3. ตรวจสอบว่าสถานะของ Request เป็น PENDING_APPROVAL หรือไม่
+    if (requestToApprove.status !== RequestStatus.PENDING_APPROVAL) {
+      this.logger.warn(`Approve failed: Request ID ${requestId} is not in PENDING_APPROVAL status. Current status: ${requestToApprove.status}`);
+      throw new BadRequestException(`Request is not pending approval. Current status: ${requestToApprove.status}`);
+    }
+
+    // 4. ตรวจสอบสิทธิ์: User ที่กด Approve ต้องเป็น Instructor เจ้าของคอร์ส หรือเป็น Admin
+    const courseInstructorId = requestToApprove.Course.instructor_id;
+    if (actingUserType !== 'admin' && courseInstructorId !== actingUserId) {
+      this.logger.warn(`Approve failed: User <span class="math-inline">\{actingUserId\} is not the course instructor \(</span>{courseInstructorId}) nor an admin.`);
+      throw new ForbiddenException('You do not have permission to approve this request.');
+    }
+
+    // 5. อัปเดตสถานะ Request เป็น APPROVED_PENDING_PAYMENT
+    try {
+      const approvedRequest = await this.prisma.request.update({
+        where: { request_id: requestId },
+        data: {
+          status: RequestStatus.APPROVED_PENDING_PAYMENT,
+        },
+      });
+      this.logger.log(`Request ID ${requestId} approved by User ${actingUserId}. Status changed to APPROVED_PENDING_PAYMENT.`);
+
+      // *** ขั้นตอนต่อไป (Future): ส่ง Notification ไปหานักเรียนว่าคำขอได้รับการอนุมัติแล้ว ***
+      // this.notificationService.notifyStudentRequestApproved(requestToApprove.student.user_id, approvedRequest.request_id);
+
+      return approvedRequest;
+    } catch (error) {
+      this.logger.error(`Failed to approve request ${requestId}: ${error.message}`, error.stack);
+      // ตรวจสอบว่าเป็น Prisma error หรือไม่ (เช่น record not found ถ้ามีการลบ request ไปพร้อมๆกัน)
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+         throw new NotFoundException(`Request with ID ${requestId} not found during update.`);
+      }
+      throw new InternalServerErrorException('Could not approve course request.');
+    }
+  }
+
+  async rejectRequest(
+    requestId: string,
+    actingUserId: string,
+    actingUserType: string,
+    rejectionReason?: string, // Parameter นี้ Optional
+  ) {
+    this.logger.log(`User ${actingUserId} (Type: ${actingUserType}) attempting to reject request ID: ${requestId}`);
+
+    // 1. ดึงข้อมูล Request พร้อมข้อมูล Course เพื่อเช็ค Instructor
+    const requestToReject = await this.prisma.request.findUnique({
+      where: { request_id: requestId },
+      include: {
+        Course: {
+          select: { instructor_id: true, course_name: true },
+        },
+        student: {
+            select: { user_id: true, email: true, name: true }
+        }
+      },
+    });
+
+    // 2. ตรวจสอบว่า Request มีอยู่จริงหรือไม่
+    if (!requestToReject) {
+      this.logger.warn(`Reject failed: Request ID ${requestId} not found.`);
+      throw new NotFoundException(`Request with ID ${requestId} not found.`);
+    }
+
+    // 3. ตรวจสอบว่าสถานะของ Request เป็น PENDING_APPROVAL หรือไม่
+    if (requestToReject.status !== RequestStatus.PENDING_APPROVAL) {
+      this.logger.warn(`Reject failed: Request ID ${requestId} is not in PENDING_APPROVAL status. Current status: ${requestToReject.status}`);
+      throw new BadRequestException(`Request is not pending approval. Current status: ${requestToReject.status}`);
+    }
+
+    // 4. ตรวจสอบสิทธิ์: User ที่กด Reject ต้องเป็น Instructor เจ้าของคอร์ส หรือเป็น Admin
+    const courseInstructorId = requestToReject.Course.instructor_id;
+    if (actingUserType !== 'admin' && courseInstructorId !== actingUserId) {
+      this.logger.warn(`Reject failed: User <span class="math-inline">\{actingUserId\} is not the course instructor \(</span>{courseInstructorId}) nor an admin.`);
+      throw new ForbiddenException('You do not have permission to reject this request.');
+    }
+
+    // 5. อัปเดตสถานะ Request เป็น REJECTED_BY_INSTRUCTOR
+    try {
+      const rejectedRequest = await this.prisma.request.update({
+        where: { request_id: requestId },
+        data: {
+          status: RequestStatus.REJECTED_BY_INSTRUCTOR,
+          // rejection_reason: rejectionReason, // <--- ถ้าคุณเพิ่ม Field นี้ใน Schema และรับมาจาก DTO
+        },
+      });
+      this.logger.log(`Request ID ${requestId} rejected by User ${actingUserId}. Status changed to REJECTED_BY_INSTRUCTOR.`);
+
+      // *** ขั้นตอนต่อไป (Future): ส่ง Notification ไปหานักเรียนว่าคำขอถูกปฏิเสธแล้ว ***
+      // this.notificationService.notifyStudentRequestRejected(requestToReject.student.user_id, rejectedRequest.request_id, rejectionReason);
+
+      return rejectedRequest;
+    } catch (error) {
+      this.logger.error(`Failed to reject request ${requestId}: ${error.message}`, error.stack);
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+         throw new NotFoundException(`Request with ID ${requestId} not found during update.`);
+      }
+      throw new InternalServerErrorException('Could not reject course request.');
+    }
+  }
+
+  async getRequestsByStudent(studentId: string) {
+    this.logger.log(`Workspaceing requests for student ID: ${studentId}`);
+    try {
+      const studentRequests = await this.prisma.request.findMany({
+        where: {
+          student_id: studentId, // ดึงเฉพาะคำขอของนักเรียนคนนี้
+        },
+        include: {
+          Course: { // ดึงข้อมูลคอร์สที่เกี่ยวข้อง
+            select: {
+              course_id: true,
+              course_name: true,
+              course_image: true, // เพิ่มรูปภาพคอร์ส (ถ้ามี)
+              instructor: { // ดึงข้อมูลอาจารย์ผู้สอน
+                select: {
+                  user_id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          // ไม่จำเป็นต้อง include student อีก เพราะเรา query จาก student_id อยู่แล้ว
+        },
+        orderBy: {
+          created_at: 'desc', // เรียงตามวันที่สร้างล่าสุดขึ้นก่อน
+        },
+      });
+      return studentRequests;
+    } catch (error) {
+      this.logger.error(`Failed to fetch requests for student ${studentId}: ${error.message}`, error.stack);
+      throw new InternalServerErrorException('Could not fetch your course requests.');
     }
   }
 }
