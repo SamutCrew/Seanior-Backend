@@ -27,6 +27,34 @@ export class SwimmingCourseService {
       throw error;
     }
   }
+  
+  async getCourseById(courseId: string) { // <--- METHOD ใหม่ที่เพิ่มเข้ามา
+    this.logger.log(`Attempting to fetch course with ID: ${courseId}`);
+    try {
+      const course = await this.prisma.swimming_course.findUnique({
+        where: {
+          course_id: courseId,
+        },
+        include: {
+          instructor: true, // ดึงข้อมูล instructor ที่เกี่ยวข้องด้วย (ถ้าต้องการ)
+        },
+      });
+
+      if (!course) {
+        this.logger.warn(`Course with ID: ${courseId} not found.`);
+        return null; // คืนค่า null เพื่อให้ controller จัดการ NotFound
+      }
+
+      this.logger.log(`Successfully fetched course with ID: ${courseId}`);
+      return course;
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch course with ID ${courseId}: ${error.message}`,
+        error.stack,
+      );
+      throw error; // Re-throwเพื่อให้ controller หรือ error filter จัดการ
+    }
+  }
 
   async getCoursesByInstructor(instructorId: string) {
     try {

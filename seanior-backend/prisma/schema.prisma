@@ -85,6 +85,7 @@ course_id                String   @id @default(cuid())
   study_frequency          String                          // ← studyFrequency
   days_study               Int
   number_of_total_sessions Int
+  allowed_absence_buffer   Int? @default(2)
   level                    String                          // ← level (Intermediate, etc.)
   schedule                 Json                            // ← schedule
   rating                   Float    @default(0.0)           // ← rating
@@ -126,9 +127,12 @@ model enrollment {
   request_id    String   @unique
   request       request  @relation(fields: [request_id], references: [request_id])
   start_date    DateTime
-  end_date      DateTime
-  status        String
+  end_date      DateTime?
+  status        EnrollmentStatus @default(ACTIVE)
   request_date  DateTime
+  target_sessions_to_complete Int    // จำนวนครั้งที่ตั้งเป้าว่าต้องเรียนครบ (ดึงมาจาก course.number_of_total_sessions)
+  max_sessions_allowed      Int    // จำนวนครั้งสูงสุดที่อนุญาตให้มาเรียน (target_sessions_to_complete + course.allowed_absence_buffer)
+  actual_sessions_attended  Int    @default(0) // จำนวนครั้งที่มาเรียนจริงๆ
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
@@ -138,6 +142,14 @@ model enrollment {
   attendance       attendance[]
   payment          payment[]
   session_progress session_progress[]
+}
+
+// --- ADD THIS ENUM (ถ้ายังไม่มี) ---
+enum EnrollmentStatus {
+  ACTIVE      // กำลังเรียนอยู่
+  COMPLETED   // เรียนจบแล้ว (ครบตามเป้า หรือ ใช้โควต้าหมด)
+  CANCELLED   // ยกเลิกกลางคัน
+  // เพิ่มสถานะอื่นๆ ตามต้องการ
 }
 
 model review {

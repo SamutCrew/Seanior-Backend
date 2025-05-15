@@ -58,6 +58,45 @@ export class SwimmingCourseController {
     }
   }
 
+  @ApiOperation({ summary: 'Get a specific course by its ID' }) // <--- เพิ่ม endpoint ใหม่
+  @ApiOkResponse({
+    description: 'Course retrieved successfully',
+    // type: CreateCourseDto, // หรือ DTO ที่เหมาะสมสำหรับ course เดี่ยว
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'The ID of the course',
+    type: String, // ระบุ type ของ parameter
+  })
+  @Get('byCourse/:id')
+  async getCourseById(@Param('id') courseId: string) {
+    this.logger.log(`Workspaceing course with ID: ${courseId}`);
+    try {
+      const course = await this.courseService.getCourseById(courseId); // สมมติว่ามี method นี้ใน service
+      if (!course) {
+        this.logger.warn(`Course with ID: ${courseId} not found`);
+        throw new HttpException('Course not found', HttpStatus.NOT_FOUND);
+      }
+      return course;
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch course ${courseId}: ${error.message}`,
+        error.stack,
+      );
+      if (error instanceof HttpException) { // ส่งต่อ HttpException ที่ถูก throw จาก service หรือ check ก่อนหน้า
+        throw error;
+      }
+      throw new HttpException(
+        { error: 'Database error', details: error.message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   @ApiOperation({ summary: 'Get courses by instructor_id' })
   @ApiOkResponse({
     description: 'Courses retrieved successfully',
