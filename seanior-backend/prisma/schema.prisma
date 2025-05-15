@@ -32,7 +32,7 @@ model user {
   // One-to-many relation
   swimming_courses swimming_course[]
   request          request[] @relation("StudentRequests")
-  attendance       attendance[]
+  recorded_attendances attendance[] @relation("AttendanceRecorder")
   resource         resource[]
   instructor_requests instructor_request[]
   notifications    notification[]
@@ -139,7 +139,7 @@ model enrollment {
   // One-to-one relation
   review           review?
   // One-to-many relation
-  attendance       attendance[]
+  attendance       attendance[] // ชื่อ Relation นี้จะถูก Prisma ตั้งให้โดยอัตโนมัติ หรือคุณจะตั้งเองก็ได้
   payment          payment[]
   session_progress session_progress[]
 }
@@ -166,15 +166,31 @@ model review {
 model attendance {
   attendance_id      String     @id @default(cuid())
   enrollment_id      String
-  enrollment         enrollment @relation(fields: [enrollment_id], references: [enrollment_id])
-  session_number     Int
-  attendance_status  String
-  reason_for_absence String?
-  date_attendance    DateTime
-  requested_by       String
-  requested          user       @relation(fields: [requested_by], references: [user_id])
+  enrollment         enrollment @relation(fields: [enrollment_id], references: [enrollment_id], onDelete: Cascade) // เพิ่ม onDelete: Cascade ถ้าต้องการให้ลบ attendance เมื่อ enrollment ถูกลบ
+
+  session_number     Int        // ครั้งที่ของเซสชัน (เช่น 1, 2, 3, ...)
+  attendance_status  AttendanceStatus // ใช้ Enum
+
+  reason_for_absence String?    // เหตุผลการขาดเรียน (ถ้ามี)
+  date_attendance    DateTime   // วันที่และเวลาของเซสชันที่เช็คชื่อ (Instructor อาจจะกรอก หรือระบบคำนวณให้)
+
+  recorded_by_id     String     // ID ของ User ที่บันทึก (ควรเป็น Instructor/Admin)
+  recorded_by        user       @relation("AttendanceRecorder", fields: [recorded_by_id], references: [user_id]) // ตั้งชื่อ Relation ใหม่
+
   created_at         DateTime   @default(now())
   updated_at         DateTime   @updatedAt
+
+  // ป้องกันการบันทึกซ้ำสำหรับ enrollment เดียวกันและ session เดียวกัน
+  @@unique([enrollment_id, session_number])
+  @@map("attendances") // ถ้าต้องการชื่อตารางเป็น attendances
+}
+
+enum AttendanceStatus {
+  PRESENT // มาเรียน
+  ABSENT  // ขาดเรียน (ไม่มีเหตุผล)
+  LATE    // มาสาย
+  EXCUSED // ลา (มีเหตุผล)
+  // เพิ่มสถานะอื่นๆ ตามต้องการ
 }
 
 model payment {

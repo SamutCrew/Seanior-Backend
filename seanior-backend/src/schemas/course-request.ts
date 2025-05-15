@@ -41,6 +41,10 @@ export class RejectCourseRequestDto {
 }
 
 export class CreateCheckoutSessionForRequestDto {
+  @ApiProperty({
+        description: 'requestId',
+        example: "Enter_your_requestId",
+    })
   @IsNotEmpty()
   @IsString()
   requestId: string;
