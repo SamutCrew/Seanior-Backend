@@ -15,6 +15,7 @@ import { CourseRequestModule } from './course-request/course-request.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { SessionProgressModule } from './session-progress/session-progress.module';
 import { ReviewModule } from './review/review.module';
+import { EnrollmentModule } from './enrollment/enrollment.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { ReviewModule } from './review/review.module';
     AttendanceModule,
     SessionProgressModule,
     ReviewModule,
+    EnrollmentModule,
   ],
   controllers: [AppController],
   providers: [AppService],
