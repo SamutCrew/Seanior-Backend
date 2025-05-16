@@ -11,8 +11,22 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 // ตรวจสอบ Path ของ DTO ให้ถูกต้อง อาจจะเป็น './dto/create-course-request.dto'
-import { CreateCourseRequestDto } from '../schemas/course-request'; // <<<--- สมมติว่า DTO อยู่ในโฟลเดอร์ dto
+import { CreateCourseRequestDto, SelectedSlotDto  } from '../schemas/course-request'; // <<<--- สมมติว่า DTO อยู่ในโฟลเดอร์ dto
 import { RequestStatus, Prisma } from '@prisma/client';
+
+// Interface เพื่อช่วย TypeScript เข้าใจโครงสร้าง schedule จาก DB
+interface CourseScheduleRange {
+  start: string;
+  end: string;
+}
+interface CourseDayScheduleData {
+  selected: boolean;
+  ranges: Array<CourseScheduleRange>;
+}
+interface CourseScheduleFromDB {
+  [day: string]: CourseDayScheduleData; // เช่น "monday", "tuesday"
+}
+
 
 @Injectable()
 export class CourseRequestService {
@@ -20,155 +34,181 @@ export class CourseRequestService {
 
   constructor(private prisma: PrismaService) {}
 
+  private parsePossiblyEscapedJson(jsonStringOrObject: any): CourseScheduleFromDB | null {
+    if (typeof jsonStringOrObject === 'object' && jsonStringOrObject !== null) {
+      // ถ้ามันเป็น Object อยู่แล้ว ก็คืนค่าไปเลย (อาจจะต้อง Validate โครงสร้างเพิ่มเติมถ้าต้องการ)
+      return jsonStringOrObject as CourseScheduleFromDB;
+    }
+    if (typeof jsonStringOrObject === 'string') {
+      try {
+        // ลอง Parse ครั้งแรก
+        let parsed = JSON.parse(jsonStringOrObject);
+        // ถ้าผลลัพธ์จากการ Parse ครั้งแรกยังเป็น String อยู่ (แสดงว่ามันอาจจะถูก Stringify ซ้ำ)
+        // ให้ลอง Parse อีกครั้ง
+        if (typeof parsed === 'string') {
+          parsed = JSON.parse(parsed);
+        }
+        // ณ จุดนี้ parsed ควรจะเป็น Object แล้ว
+        if (typeof parsed === 'object' && parsed !== null) {
+          return parsed as CourseScheduleFromDB;
+        }
+        return null; // ไม่สามารถ Parse เป็น Object ได้
+      } catch (e) {
+        this.logger.error(`Failed to parse schedule JSON string: ${jsonStringOrObject}`, e);
+        return null; // Parse ไม่สำเร็จ
+      }
+    }
+    return null; // ไม่ใช่ Object หรือ String
+  }
+
   async createRequest(createDto: CreateCourseRequestDto, studentId: string) {
-    // ---> ADD: ดึงค่าใหม่จาก DTO (ตามที่เราออกแบบไว้ในคำตอบ #46) <---
-    const { courseId, startDate, selectedSchedule } = createDto;
+    const { courseId, startDateForFirstWeek, selectedSlots, notes } = createDto;
 
-    // ---> ADD: Parse selectedSchedule เพื่อแยกวันและช่วงเวลา <---
-    const scheduleParts = selectedSchedule.split(':');
-    if (scheduleParts.length < 2 || !scheduleParts[0] || !scheduleParts[1]) {
-      this.logger.warn(`Invalid selectedSchedule format: ${selectedSchedule}`);
-      throw new BadRequestException(
-        `Invalid selectedSchedule format. Expected "dayname:HH:MM-HH:MM".`,
-      );
-    }
-    const parsedDayOfWeek = scheduleParts[0].toLowerCase(); // e.g., "wednesday"
-    const parsedTimeSlotString = scheduleParts.slice(1).join(':'); // e.g., "19:00-20:00"
-
-    // ---> ADD: ดึงเวลาเริ่มต้น (HH:MM) จาก parsedTimeSlotString <---
-    const parsedStartTime = parsedTimeSlotString.split('-')[0];
-    if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(parsedStartTime)) {
-      this.logger.warn(
-        `Invalid start time parsed from selectedSchedule: ${parsedStartTime}`,
-      );
-      throw new BadRequestException(
-        `Invalid time format in selectedSchedule. Start time should be HH:MM.`,
-      );
-    }
-
-    // 1. ตรวจสอบว่า Course ID ที่ส่งมา มีอยู่จริงหรือไม่
+    // 1. ตรวจสอบ Course และ Schedule ของ Course
     const course = await this.prisma.swimming_course.findUnique({
-      where: { course_id: courseId }, // ใช้ courseId จาก DTO
+      where: { course_id: courseId },
     });
 
     if (!course) {
-      this.logger.warn(
-        `Course with ID ${courseId} not found for creating request.`,
-      );
+      this.logger.warn(`Course with ID ${courseId} not found for creating request.`);
       throw new NotFoundException(`Course with ID ${courseId} not found.`);
     }
 
-    // ---> ADD: ตรวจสอบ Schedule ของคอร์ส และ Validate วันเวลาที่นักเรียนเลือก <---
-    if (!course.schedule || typeof course.schedule !== 'object') {
+    // ---> MODIFY: ใช้ฟังก์ชัน Helper ในการ Parse และทำความสะอาด course.schedule <---
+    const cleanedSchedule = this.parsePossiblyEscapedJson(course.schedule);
+
+    if (!cleanedSchedule || Object.keys(cleanedSchedule).length === 0) {
       this.logger.error(
-        `Course ${courseId} has invalid or missing schedule data.`,
+        `Course ${courseId} has invalid or missing schedule data after parsing. Original data: ${JSON.stringify(course.schedule)}`,
       );
       throw new BadRequestException(
-        `Course ${courseId} does not have a valid schedule.`,
+        `Course ${courseId} does not have a valid schedule configured.`,
       );
     }
-    const courseSchedule = course.schedule as Record<string, string>;
+    const courseSchedule = cleanedSchedule as CourseScheduleFromDB; // ตอนนี้ courseSchedule ควรจะเป็น Object ที่ถูกต้อง
+    // --- END MODIFY ---
 
-    // 2. ตรวจสอบว่า parsedDayOfWeek ที่นักเรียนเลือก มีอยู่ใน Schedule ของคอร์สหรือไม่
-    // และตรวจสอบว่า Time Slot ที่นักเรียนส่งมา (parsedTimeSlotString) ตรงกับที่กำหนดใน Schedule หรือไม่
-    if (
-      !courseSchedule[parsedDayOfWeek] ||
-      courseSchedule[parsedDayOfWeek] !== parsedTimeSlotString
-    ) {
-      this.logger.warn(
-        `Selected schedule slot "${parsedDayOfWeek} at ${parsedTimeSlotString}" is not available for course ${courseId}. Available: ${JSON.stringify(course.schedule)}`,
-      );
-      throw new BadRequestException(
-        `The selected schedule slot "${selectedSchedule}" is not available for this course.`,
-      );
+    // if (!course.schedule || typeof course.schedule !== 'object' || Array.isArray(course.schedule)) { // <<<--- เพิ่ม Array.isArray(course.schedule)
+    //   this.logger.error(
+    //     `Course ${courseId} has invalid or missing schedule data (not a JSON object). Data: ${JSON.stringify(course.schedule)}`,
+    //   );
+    //   throw new BadRequestException(
+    //     `Course ${courseId} does not have a valid schedule configured.`,
+    //   );
+    // }
+    // // หลังจากเช็คแล้วว่ามันเป็น Object และไม่ใช่ Array เราถึงจะ Cast
+    // const courseSchedule = course.schedule as unknown as CourseScheduleFromDB;
+
+    // 2. Validate startDateForFirstWeek
+    const firstWeekStartDateObj = new Date(startDateForFirstWeek);
+    if (isNaN(firstWeekStartDateObj.getTime())) {
+        throw new BadRequestException('Invalid startDateForFirstWeek format. Please use YYYY-MM-DD.');
+    }
+    // ตัวอย่าง Validation เพิ่มเติม: วันที่ต้องไม่ใช่วันในอดีต
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // เซ็ตเวลาเป็นเที่ยงคืนเพื่อเปรียบเทียบเฉพาะวัน
+    if (firstWeekStartDateObj < today) {
+        throw new BadRequestException('startDateForFirstWeek cannot be in the past.');
+    }
+    // คุณอาจจะอยาก Validate ว่า startDateForFirstWeek เป็นวันจันทร์ (ถ้าสัปดาห์การเรียนเริ่มวันจันทร์)
+    // if (firstWeekStartDateObj.getDay() !== 1) { // 0 = Sunday, 1 = Monday
+    //   throw new BadRequestException('startDateForFirstWeek must be a Monday to align with the week.');
+    // }
+
+
+    // 3. Validate selectedSlots ที่นักเรียนเลือกมา กับ course.schedule
+    if (!selectedSlots || selectedSlots.length === 0) {
+        throw new BadRequestException('At least one schedule slot must be selected.');
     }
 
-    // 3. ตรวจสอบว่า startDate ที่นักเรียนเลือก เป็นวันเดียวกับ parsedDayOfWeek จริงๆ
-    const startDateObj = new Date(startDate);
-    const dayOfStartDate = startDateObj
-      .toLocaleDateString('en-US', { weekday: 'long' })
-      .toLowerCase();
-    if (dayOfStartDate !== parsedDayOfWeek) {
-      this.logger.warn(
-        `The selected start date ${startDate} (${dayOfStartDate}) does not fall on the selected day of week (${parsedDayOfWeek}).`,
+    for (const slot of selectedSlots) {
+      const dayKey = slot.dayOfWeek.toLowerCase(); // เพื่อความแน่นอนในการเทียบ Key
+      const dayScheduleData = courseSchedule[dayKey];
+
+      if (!dayScheduleData || !dayScheduleData.selected) {
+        throw new BadRequestException(`Course is not available or not selected on ${slot.dayOfWeek}.`);
+      }
+
+      // ตรวจสอบว่า startTime และ endTime ที่ส่งมา ตรงกับ range ที่มีใน schedule ของวันนั้น
+      const isValidSlot = dayScheduleData.ranges.some(
+        (range) => range.start === slot.startTime && range.end === slot.endTime
       );
-      throw new BadRequestException(
-        `The selected start date (${startDate}) is a ${dayOfStartDate}, which does not match the selected day of the week (${parsedDayOfWeek}). Please choose a start date that is a ${parsedDayOfWeek}.`,
-      );
+
+      if (!isValidSlot) {
+        this.logger.warn(`Invalid slot selected: Day: ${slot.dayOfWeek}, Time: ${slot.startTime}-${slot.endTime}. Available ranges for ${dayKey}: ${JSON.stringify(dayScheduleData.ranges)}`);
+        throw new BadRequestException(
+          `Time slot ${slot.startTime}-${slot.endTime} on ${slot.dayOfWeek} is not available for this course. Please check the course schedule.`,
+        );
+      }
     }
 
-    // 4. สร้าง DateTime ที่สมบูรณ์สำหรับเซสชันแรก
-    const [hours, minutes] = parsedStartTime.split(':').map(Number);
-    const firstSessionDateTime = new Date(startDate);
-    firstSessionDateTime.setHours(hours, minutes, 0, 0);
-    // --- END ADDED/MODIFIED VALIDATION AND PREPARATION LOGIC ---
-
-    // (Optional) 5. ตรวจสอบว่านักเรียนคนนี้เคยส่งคำขอสำหรับคอร์สนี้ที่ยังไม่ถูกจัดการหรือไม่ (เหมือนเดิม)
+    // (Optional) 4. ตรวจสอบคำขอซ้ำซ้อน (อาจจะยังใช้ Logic เดิมไปก่อน)
     const existingRequest = await this.prisma.request.findFirst({
       where: {
         student_id: studentId,
-        course_id: courseId, // ใช้ courseId จาก DTO
+        course_id: courseId,
         status: {
-          in: [
-            RequestStatus.PENDING_APPROVAL,
-            RequestStatus.APPROVED_PENDING_PAYMENT,
-          ],
+          in: [RequestStatus.PENDING_APPROVAL, RequestStatus.APPROVED_PENDING_PAYMENT],
         },
       },
     });
 
     if (existingRequest) {
-      this.logger.warn(
-        `Student ${studentId} already has an active request for course ${courseId}`,
-      );
-      throw new ConflictException(
-        'You already have an active request for this course. Please wait for instructor approval or cancel the existing request.',
-      );
+      this.logger.warn(`Student ${studentId} already has an active/pending request for course ${courseId}`);
+      throw new ConflictException('You already have an active or pending request for this course.');
     }
 
-    // 6. สร้าง Record ใหม่ในตาราง request
+    // 5. คำนวณราคารวม (ถ้าจำเป็น - ขึ้นอยู่กับ Business Logic ของคุณ)
+    // สำหรับตอนนี้ เรายังใช้ราคาจากคอร์สหลักไปก่อน
+    const requestPrice = course.price;
+
+    // 6. สร้าง Record ใหม่ในตาราง request และ RequestedSlot (ใน Transaction เดียวกัน)
     try {
       const newRequest = await this.prisma.request.create({
         data: {
-          course_id: courseId, // ใช้ courseId จาก DTO
+          course_id: courseId,
           student_id: studentId,
           status: RequestStatus.PENDING_APPROVAL,
-          request_price: course.price,
-          request_location: course.location,
-          request_date: firstSessionDateTime, // วันที่และเวลาของเซสชันแรก
-          requestDayOfWeek: parsedDayOfWeek, // วันในสัปดาห์ที่เลือก
-          requestTimeSlot: parsedStartTime, // เวลาเริ่มที่เลือก (HH:MM)
-        },
-        include: {
-          Course: {
-            select: { course_name: true, instructor_id: true },
+          request_price: requestPrice,
+          request_location: course.location, // หรือจาก DTO ถ้าต้องการ
+          request_date: new Date(), // วันที่ส่งคำขอ
+          start_date_for_first_week: firstWeekStartDateObj, // วันที่อ้างอิงสัปดาห์แรก
+          notes: notes, // จาก DTO
+          requestedSlots: { // สร้าง Record ใน RequestedSlot ไปพร้อมกัน
+            create: selectedSlots.map(slot => ({
+              dayOfWeek: slot.dayOfWeek.toLowerCase(),
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+              // คุณอาจจะอยากคำนวณ 'calculated_first_session_datetime' ที่นี่
+              // โดยอิงจาก firstWeekStartDateObj และ slot.dayOfWeek
+              // เช่น: calculateActualDateTimeForSlot(firstWeekStartDateObj, slot.dayOfWeek, slot.startTime)
+            })),
           },
-          student: {
-            select: { user_id: true, name: true, email: true },
-          },
         },
+        include: { // ดึงข้อมูลที่สร้างแล้วกลับมาด้วย เพื่อให้ Response Body สมบูรณ์
+          requestedSlots: true,
+          Course: { select: { course_name: true, instructor_id: true } },
+          student: { select: { user_id: true, name: true, email: true } },
+        }
       });
 
-      this.logger.log(
-        `Created new request ${newRequest.request_id} by student ${studentId} for course ${courseId}. Selected slot: ${parsedDayOfWeek} at ${parsedStartTime}, starting ${startDate}. First session: ${firstSessionDateTime.toISOString()}`,
-      );
+      this.logger.log(`Created new request ${newRequest.request_id} by student ${studentId} for course ${courseId} with ${selectedSlots.length} slots.`);
 
       // *** ขั้นตอนต่อไป (Future): ส่ง Notification ไปหา Instructor ***
-      // const instructorId = newRequest.Course.instructor_id;
-      // this.notificationService.notifyInstructorNewRequest(instructorId, newRequest.request_id);
+      // const instructorId = newRequest.Course?.instructor_id;
+      // if (instructorId) {
+      //   // this.notificationService.notifyInstructorNewRequest(instructorId, newRequest.request_id);
+      // }
 
       return newRequest;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        this.logger.error(
-          `Prisma error creating request: ${error.code} - ${error.message}`,
-          error.stack,
-        );
+        this.logger.error(`Prisma error creating request: ${error.code} - ${error.message}`, error.stack);
+        if (error.code === 'P2002') { // Unique constraint failed
+            throw new ConflictException('There was a conflict creating the request, possibly due to duplicate slot selection within the same request or other unique constraints.');
+        }
       } else {
-        this.logger.error(
-          `Generic error creating request: ${error.message}`,
-          error.stack,
-        );
+        this.logger.error(`Generic error creating request: ${error.message}`, error.stack);
       }
       throw new InternalServerErrorException('Could not create course request.');
     }
