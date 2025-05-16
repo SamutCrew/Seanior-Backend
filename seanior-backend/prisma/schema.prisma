@@ -230,10 +230,13 @@ model session_progress {
   session_number      Int
   topic_covered       String
   performance_notes   String
-  attendance          String
+  // attendance          String
   date_session        DateTime
   created_at          DateTime   @default(now())
   updated_at          DateTime   @updatedAt
+
+  @@unique([enrollment_id, session_number]) // ป้องกันการบันทึกซ้ำสำหรับ enrollment และ session เดียวกัน
+  @@map("session_progresses") // หรือ "session_progress" ตามที่คุณต้องการ
 }
 
 model notification {
