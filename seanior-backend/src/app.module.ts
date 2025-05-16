@@ -14,6 +14,7 @@ import { NotificationModule } from './notification/notification.module';
 import { CourseRequestModule } from './course-request/course-request.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { SessionProgressModule } from './session-progress/session-progress.module';
+import { ReviewModule } from './review/review.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { SessionProgressModule } from './session-progress/session-progress.modul
     CourseRequestModule,
     AttendanceModule,
     SessionProgressModule,
+    ReviewModule,
   ],
   controllers: [AppController],
   providers: [AppService],
