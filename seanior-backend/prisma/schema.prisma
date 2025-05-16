@@ -173,13 +173,17 @@ enum EnrollmentStatus {
 
 model review {
   review_id     String     @id @default(cuid())
-  enrollment_id String     @unique
-  enrollment    enrollment @relation(fields: [enrollment_id], references: [enrollment_id])
-  rating        Int
-  comment       String
-  review_date   DateTime
+  enrollment_id String     @unique // <<<--- 1 Enrollment มีได้ 1 Review
+  enrollment    enrollment @relation(fields: [enrollment_id], references: [enrollment_id], onDelete: Cascade) // เพิ่ม onDelete
+
+  rating        Int        // คะแนน (เช่น 1-5)
+  comment       String     // ความคิดเห็น
+  review_date   DateTime   // วันที่รีวิว (อาจจะใช้ @default(now()) หรือให้ Client ส่งมา)
+
   created_at    DateTime   @default(now())
   updated_at    DateTime   @updatedAt
+
+  @@map("reviews") // ถ้าต้องการชื่อตารางเป็น reviews
 }
 
 model attendance {
