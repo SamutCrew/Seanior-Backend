@@ -130,7 +130,10 @@ export class PaymentService {
     // 4. สร้าง Stripe Checkout Session (เหมือนเดิม)
     try {
       const session = await this.stripe.checkout.sessions.create({
-        payment_method_types: ['promptpay', 'card'],
+        payment_method_types: [
+          'promptpay',
+          //  'card', // ถ้าต้องการให้จ่ายด้วยบัตรเครดิตด้วย
+          ],
         line_items: [{
           price_data: {
             currency: 'thb',

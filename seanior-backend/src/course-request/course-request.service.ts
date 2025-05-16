@@ -240,6 +240,7 @@ export class CourseRequestService {
               profile_img: true,
             },
           },
+          requestedSlots: true,
         },
         orderBy: {
           created_at: 'asc', // เรียงตามวันที่สร้าง (เก่าไปใหม่)
@@ -437,6 +438,7 @@ export class CourseRequestService {
               },
             },
           },
+          requestedSlots: true,
           // ไม่จำเป็นต้อง include student อีก เพราะเรา query จาก student_id อยู่แล้ว
         },
         orderBy: {
