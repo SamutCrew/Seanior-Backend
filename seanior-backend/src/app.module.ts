@@ -13,6 +13,7 @@ import { PaymentModule } from './payment/payment.module';
 import { NotificationModule } from './notification/notification.module';
 import { CourseRequestModule } from './course-request/course-request.module';
 import { AttendanceModule } from './attendance/attendance.module';
+import { SessionProgressModule } from './session-progress/session-progress.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { AttendanceModule } from './attendance/attendance.module';
     NotificationModule,
     CourseRequestModule,
     AttendanceModule,
+    SessionProgressModule,
   ],
   controllers: [AppController],
   providers: [AppService],
