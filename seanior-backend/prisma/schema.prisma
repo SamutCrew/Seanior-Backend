@@ -103,23 +103,42 @@ course_id                String   @id @default(cuid())
 
 
 model request {
-  request_id                String          @id @default(cuid())
+  request_id                String    @id @default(cuid())
   course_id                 String
   Course                    swimming_course @relation(fields: [course_id], references: [course_id])
   student_id                String
-  student                   user     @relation("StudentRequests", fields: [student_id], references: [user_id])
-  request_price             Int
-  request_location          String
+  student                   user      @relation("StudentRequests", fields: [student_id], references: [user_id])
+  request_price             Int       // ราคารวมของ Slot ทั้งหมดที่ขอ หรือราคาคอร์ส
+  request_location          String    // อาจจะดึงมาจาก Course
   status                    RequestStatus @default(PENDING_APPROVAL)
-  request_date              DateTime
-  requestDayOfWeek          String
-  requestTimeSlot           String  
-  created_at                DateTime        @default(now())
-  updated_at                DateTime        @updatedAt
+  request_date              DateTime  @default(now()) // วันที่ส่งคำขอ
+  start_date_for_first_week DateTime? // วันที่อ้างอิงสำหรับสัปดาห์แรกที่เริ่ม
+  notes                     String?   // จาก DTO
 
-  // One-to-one relation (must be unique on the other side)
-  enrollment enrollment?
-  booking    Booking?   @relation("RequestToBooking")
+  requestedSlots            RequestedSlot[] // <<<--- Relation ไปยัง Slot ที่เลือก
+
+  created_at                DateTime  @default(now())
+  updated_at                DateTime  @updatedAt
+  enrollment                enrollment?
+  booking                   Booking?   @relation("RequestToBooking")
+
+  @@map("requests") // ถ้าต้องการชื่อตาราง requests
+}
+
+model RequestedSlot {
+  id        String   @id @default(cuid())
+  requestId String
+  request   request  @relation(fields: [requestId], references: [request_id], onDelete: Cascade)
+
+  dayOfWeek String   // "monday", "tuesday", etc.
+  startTime String   // "HH:MM"
+  endTime   String   // "HH:MM"
+
+  // (Optional) ถ้าต้องการเก็บวันที่และเวลาที่คำนวณแล้วของเซสชั่นแรกสำหรับ Slot นี้
+  // calculated_first_session_datetime DateTime?
+
+  @@unique([requestId, dayOfWeek, startTime, endTime]) // ป้องกันการเลือก Slot เดียวกันซ้ำใน Request เดียว
+  @@map("requested_slots") // ถ้าต้องการชื่อตาราง requested_slots
 }
 
 model enrollment {
