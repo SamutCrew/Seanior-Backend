@@ -118,8 +118,6 @@ export class UsersController {
     status: 401,
     description: 'Unauthorized',
   })
-  @UseGuards(FirebaseAuthGuard)
-  @ApiBearerAuth()
   @Get('retrieve/getAllInstructors')
   async getAllInstructors() {
     try {
