@@ -31,7 +31,8 @@ export class CreateSessionProgressDto {
     example: 'https://your-storage.com/path/to/image.jpg',
   })
   @IsOptional()
-  @IsUrl({}, { message: 'Image URL must be a valid URL' }) // ตรวจสอบว่าเป็น URL
+  // @IsUrl({}, { message: 'Image URL must be a valid URL' }) // ตรวจสอบว่าเป็น URL
+  // @IsString()
   imageUrl?: string; // <<<--- เปลี่ยนเป็น imageUrl (string, optional)
 }
 
