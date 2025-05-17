@@ -221,8 +221,6 @@ export class UsersController {
   }
 
   @Get('retrieve/:userId')
-  @ApiBearerAuth()
-  @UseGuards(FirebaseAuthGuard)
   @ApiOperation({ summary: 'Get user data from database by user_id' })
   @ApiOkResponse({
     description: 'User data retrieved successfully',
