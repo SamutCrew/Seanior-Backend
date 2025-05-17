@@ -77,6 +77,7 @@ export class SessionProgressService {
           topic_covered: dto.topicCovered,
           performance_notes: dto.performanceNotes,
           date_session: sessionDate,
+          image_url: dto.imageUrl,
         },
         create: {
           enrollment_id: enrollmentId,
@@ -84,6 +85,7 @@ export class SessionProgressService {
           topic_covered: dto.topicCovered,
           performance_notes: dto.performanceNotes,
           date_session: sessionDate,
+          image_url: dto.imageUrl,
         },
       });
       this.logger.log(`Session progress for enrollment ${enrollmentId}, session ${dto.sessionNumber} created/updated.`);
@@ -162,6 +164,11 @@ export class SessionProgressService {
     if (dto.topicCovered !== undefined) dataToUpdate.topic_covered = dto.topicCovered;
     if (dto.performanceNotes !== undefined) dataToUpdate.performance_notes = dto.performanceNotes;
     if (dto.dateSession !== undefined) dataToUpdate.date_session = new Date(dto.dateSession);
+    // --- จัดการ imageUrl ---
+    if (dto.imageUrl !== undefined) { // ถ้ามีการส่ง imageUrl มา (อาจจะเป็น string หรือ null)
+         dataToUpdate.image_url = dto.imageUrl; // ถ้าส่ง null มา คือต้องการลบรูป
+    }
+    // --- จบการจัดการ imageUrl ---
     // sessionNumber ปกติไม่ควรเปลี่ยน แต่ถ้าต้องการ ก็เพิ่ม Logic ได้
 
     if (Object.keys(dataToUpdate).length === 0) {

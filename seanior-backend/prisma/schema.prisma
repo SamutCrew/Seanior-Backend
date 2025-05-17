@@ -236,6 +236,7 @@ model session_progress {
   performance_notes   String
   // attendance          String
   date_session        DateTime
+  image_url           String?
   created_at          DateTime   @default(now())
   updated_at          DateTime   @updatedAt
 
