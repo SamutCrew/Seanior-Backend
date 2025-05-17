@@ -1,7 +1,7 @@
 // src/attendance/attendance.service.ts
 import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateAttendanceDto } from '../schemas/attendance';
+import { CreateAttendanceDto, RequestExcuseDto  } from '../schemas/attendance';
 import { AttendanceStatus, EnrollmentStatus, Prisma } from '@prisma/client';
 
 @Injectable()
@@ -144,4 +144,92 @@ export class AttendanceService {
       // include: { recorded_by: { select: { name: true} } } // ถ้าต้องการชื่อผู้บันทึก
     });
   }
+
+  // --- ADD THIS NEW METHOD FOR STUDENT TO REQUEST EXCUSE ---
+  async studentRequestExcuse(
+    enrollmentId: string,
+    dto: RequestExcuseDto, // <<<--- ใช้ DTO ใหม่
+    studentId: string,    // ID ของนักเรียนที่กำลังส่งคำขอลา
+  ) {
+    this.logger.log(`Student ${studentId} requesting excuse for enrollment ${enrollmentId}, session ${dto.sessionNumber}`);
+
+    // 1. ตรวจสอบ Enrollment
+    const enrollment = await this.prisma.enrollment.findUnique({
+      where: { enrollment_id: enrollmentId },
+      include: {
+        request: { // ดึง request มาเพื่อเช็ค student_id เจ้าของ enrollment
+          select: { student_id: true, Course: { select: { number_of_total_sessions: true } } },
+        },
+      },
+    });
+
+    if (!enrollment) {
+      throw new NotFoundException(`Enrollment with ID ${enrollmentId} not found.`);
+    }
+
+    // 2. ตรวจสอบสิทธิ์: นักเรียนคนนี้เป็นเจ้าของ Enrollment นี้จริงหรือไม่
+    if (enrollment.request.student_id !== studentId) {
+      throw new ForbiddenException('You can only request leave for your own enrollments.');
+    }
+
+    // 3. ตรวจสอบว่า Enrollment ยัง ACTIVE อยู่หรือไม่
+    if (enrollment.status !== EnrollmentStatus.ACTIVE) {
+      throw new BadRequestException(`Cannot request leave. Enrollment status is not ACTIVE (Current: ${enrollment.status}).`);
+    }
+
+    // 4. ตรวจสอบ sessionNumber
+    // อาจจะเทียบกับ enrollment.max_sessions_allowed หรือ enrollment.request.Course.number_of_total_sessions
+    if (dto.sessionNumber <= 0 || dto.sessionNumber > enrollment.max_sessions_allowed) {
+      throw new BadRequestException(
+        `Invalid session number ${dto.sessionNumber}. Must be between 1 and ${enrollment.max_sessions_allowed}.`,
+      );
+    }
+
+    // 5. ตรวจสอบ dateAttendance (เช่น ต้องไม่ใช่วันในอดีต หรือต้องเป็นวันที่คาดว่าจะมีเซสชันจริงๆ - ส่วนหลังอาจจะซับซ้อน)
+    const requestedDate = new Date(dto.dateAttendance);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    // if (requestedDate < today) { // อาจจะอนุญาตให้ลาสำหรับวันที่ผ่านมาแล้วได้ (แล้วแต่อาจารย์) หรือไม่อนุญาต
+    //   throw new BadRequestException('Cannot request leave for a past date.');
+    // }
+
+    // 6. สร้างหรืออัปเดต Attendance record ด้วยสถานะ EXCUSED และ recorded_by_id เป็น studentId
+    // ใช้ upsert เผื่อนักเรียนอาจจะเคยส่งคำขอลาสำหรับเซสชั่นนี้แล้วต้องการอัปเดตเหตุผล
+    // หรือถ้าอาจารย์เคยบันทึกไปแล้ว นักเรียนอาจจะมาขอแก้ (ต้องพิจารณา Policy)
+    // เพื่อความง่ายตอนนี้ จะให้ upsert โดยถ้ามี record เดิมอยู่แล้ว จะอัปเดตเป็น EXCUSED และเปลี่ยน recorded_by
+    try {
+      const attendanceRecord = await this.prisma.attendance.upsert({
+        where: {
+          enrollment_id_session_number: {
+            enrollment_id: enrollmentId,
+            session_number: dto.sessionNumber,
+          },
+        },
+        update: { // ถ้ามี Record ของ Session นี้อยู่แล้ว
+          attendance_status: AttendanceStatus.EXCUSED,
+          reason_for_absence: dto.reasonForAbsence,
+          date_attendance: requestedDate,
+          recorded_by_id: studentId, // ผู้บันทึกล่าสุดคือ นักเรียน
+        },
+        create: { // ถ้ายังไม่มี Record ของ Session นี้
+          enrollment_id: enrollmentId,
+          session_number: dto.sessionNumber,
+          attendance_status: AttendanceStatus.EXCUSED,
+          reason_for_absence: dto.reasonForAbsence,
+          date_attendance: requestedDate,
+          recorded_by_id: studentId, // ผู้บันทึกคือ นักเรียน
+        },
+      });
+      this.logger.log(`Student ${studentId} successfully requested excuse for enrollment ${enrollmentId}, session ${dto.sessionNumber}. Attendance ID: ${attendanceRecord.attendance_id}`);
+
+      // การแจ้งลาโดยนักเรียน "ไม่ควร" ไปอัปเดต actual_sessions_attended หรือสถานะ Enrollment โดยตรง
+      // ส่วนนั้นควรจะเป็น Logic ตอนที่ Instructor มา finalize attendance หรือระบบคำนวณเมื่อครบกำหนด
+
+      return attendanceRecord;
+    } catch (error) {
+      this.logger.error(`Student ${studentId} failed to request excuse for enrollment ${enrollmentId}, session ${dto.sessionNumber}: ${error.message}`, error.stack);
+      throw new InternalServerErrorException('Could not process your leave request.');
+    }
+  }
+  // --- END ADD NEW METHOD ---
 }

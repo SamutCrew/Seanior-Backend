@@ -42,3 +42,28 @@ export class CreateAttendanceDto {
   @IsDateString()
   dateAttendance: string;
 }
+
+export class RequestExcuseDto {
+  @IsNotEmpty()
+  @IsInt()
+  @Min(1)
+  sessionNumber: number;
+
+  @ApiProperty({
+    description: 'Date of the session the student is requesting leave for (YYYY-MM-DD or ISO date string).',
+    example: '2025-06-01',
+  })
+  @IsNotEmpty()
+  @IsDateString()
+  dateAttendance: string;
+
+  @ApiPropertyOptional({
+    description: 'Reason for the excused absence request.',
+    example: 'Doctor appointment',
+    maxLength: 500,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reasonForAbsence?: string;
+}
