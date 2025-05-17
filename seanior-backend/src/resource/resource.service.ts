@@ -1,13 +1,15 @@
 // resource.service.ts
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BlobServiceClient, BlockBlobClient } from '@azure/storage-blob';
 import { v4 as uuid } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
 
+
 @Injectable()
 export class ResourceService {
   private blobServiceClient: BlobServiceClient;
+  private readonly logger = new Logger(ResourceService.name);
 
   constructor(
     private configService: ConfigService,
@@ -403,4 +405,48 @@ export class ResourceService {
   async getAllResources() {
     return this.prisma.resource.findMany({});
   }
+
+  // --- ADD THIS NEW METHOD ---
+  async uploadSessionProgressImage(
+    file: Express.Multer.File,
+    enrollmentId: string, // ID ของ Enrollment ที่เกี่ยวข้อง
+    sessionNumber: number,  // Session Number
+    uploaderUserId: string, // ID ของ User ที่ทำการ Upload (Instructor/Admin)
+    // containerName: string, // หรือจะ Hardcode containerName สำหรับ session-progress ไปเลย
+  ) {
+    // กำหนด Container Name สำหรับ Session Progress Images
+    const containerName = 'session-progress-images'; // หรืออ่านจาก Config
+
+    const extension = file.originalname.split('.').pop();
+    if (!extension) {
+      throw new BadRequestException('File must have a valid extension');
+    }
+    // สร้างชื่อไฟล์ที่ไม่ซ้ำกันและสื่อความหมาย
+    const fileName = `enrollment_${enrollmentId}_session_${sessionNumber}_${uuid()}.${extension}`;
+    const blockBlobClient = await this.getBlobClient(containerName, fileName);
+
+    await blockBlobClient.uploadData(file.buffer, {
+      blobHTTPHeaders: { blobContentType: file.mimetype },
+    });
+
+    const resourceUrl = blockBlobClient.url;
+    const sizeInKiB = file.size / 1024;
+
+    // สร้าง Resource record ใน Database
+    // user_id ที่ผูกกับ resource นี้คือ uploaderUserId (Instructor/Admin)
+    const resource = await this.prisma.resource.create({
+      data: {
+        // resource_id: uuid(), // ถ้า PK ของ resource ไม่ใช่ auto-generate ด้วย cuid()
+        user_id: uploaderUserId,
+        resource_name: fileName, // หรือจะใช้ file.originalname ก็ได้ถ้าต้องการ
+        resource_type: file.mimetype,
+        resource_url: resourceUrl,
+        resource_size: sizeInKiB,
+      },
+    });
+
+    this.logger.log(`Session progress image uploaded: ${resourceUrl} for enrollment ${enrollmentId}, session ${sessionNumber}. Resource ID: ${resource.resource_id}`);
+    return { resourceUrl, resourceId: resource.resource_id };
+  }
+  // --- END ADD NEW METHOD ---
 }

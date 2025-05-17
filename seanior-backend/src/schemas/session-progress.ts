@@ -1,6 +1,6 @@
 // src/session-progress/dto/create-session-progress.dto.ts
 import { ApiProperty, ApiPropertyOptional  } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsInt, Min, IsDateString, MaxLength, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsString, IsInt, Min, IsDateString, MaxLength, IsOptional, IsUrl } from 'class-validator';
 
 export class CreateSessionProgressDto {
   @ApiProperty({ example: 1, description: 'The session number (e.g., 1st, 2nd session)' })
@@ -25,6 +25,14 @@ export class CreateSessionProgressDto {
   @IsNotEmpty()
   @IsDateString()
   dateSession: string;
+
+  @ApiPropertyOptional({ // เป็น Optional
+    description: 'URL of the uploaded image for session progress',
+    example: 'https://your-storage.com/path/to/image.jpg',
+  })
+  @IsOptional()
+  @IsUrl({}, { message: 'Image URL must be a valid URL' }) // ตรวจสอบว่าเป็น URL
+  imageUrl?: string; // <<<--- เปลี่ยนเป็น imageUrl (string, optional)
 }
 
 export class UpdateSessionProgressDto {
@@ -50,4 +58,35 @@ export class UpdateSessionProgressDto {
   @IsOptional()
   @IsDateString()
   dateSession?: string;
+
+  @ApiPropertyOptional({
+    description: 'URL of the uploaded image for session progress (send null or empty string to remove)',
+    example: 'https://your-storage.com/path/to/new_image.jpg',
+    nullable: true, // สามารถส่ง null มาเพื่อลบรูปได้
+  })
+  @IsOptional()
+  @IsUrl({}, { message: 'Image URL must be a valid URL' })
+  @IsString() // ตรวจสอบว่าเป็นสตริง (ถ้าไม่ใช่ null)
+  imageUrl?: string | null;
+}
+
+export class CreateSessionProgressWithFileDto extends CreateSessionProgressDto {
+  @ApiPropertyOptional({
+    type: 'string',       // Swagger UI จะมองเป็น string
+    format: 'binary',     // แต่ format 'binary' จะทำให้มีปุ่ม "Choose File"
+    description: 'Optional image file for session progress. This field is for file upload via multipart/form-data.',
+  })
+  @IsOptional() // Controller จะรับไฟล์ผ่าน @UploadedFile() ไม่ใช่จาก DTO นี้โดยตรง
+  imageFile?: any; // Type 'any' หรือ 'Express.Multer.File' (ถ้า import มา) สำหรับ Swagger ให้รู้ว่ามี Field นี้
+                   // class-validator จะไม่ validate field นี้ เพราะ FileInterceptor จัดการ
+}
+
+export class UpdateSessionProgressWithFileDto extends UpdateSessionProgressDto {
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Optional new image file to replace the existing one. This field is for file upload via multipart/form-data.',
+  })
+  @IsOptional()
+  imageFile?: any;
 }
