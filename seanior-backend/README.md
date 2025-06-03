@@ -6,7 +6,7 @@
 
 ## 📝 Description
 
-This backend API powers the 'Online Platform for Connecting Learners with Swimming Instructors.' It provides the core services for user management, course and booking administration, payment processing, and data storage. Built with NestJS and PostgreSQL, this API is designed to address the unreliability of existing online channels by offering a secure and centralized system. It serves as the backbone for [seanior-frontend](https://github.com/SamutCrew/Seanior-Frontend/tree/main/samut), ensuring a reliable and convenient connection between swimming learners and instructors. [NestJS](https://nestjs.com/)
+This backend API powers the 'Online Platform for Connecting Learners with Swimming Instructors.' It provides the core services for user management, course and booking administration, payment processing, and data storage. Built with NestJS and PostgreSQL, this API is designed to address the unreliability of existing online channels by offering a secure and centralized system. It serves as the backbone for [seanior-frontend](https://github.com/SamutCrew/Seanior-Frontend/tree/main/samut), ensuring a reliable and convenient connection between swimming learners and instructors.
 
 ## 🚀 Features
 
