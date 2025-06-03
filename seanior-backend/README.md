@@ -1,54 +1,140 @@
+# Seanior Backend
+
 <p align="center">
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+## 📝 Description
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Seanior is a comprehensive backend system for managing a swimming school, built with [NestJS](https://nestjs.com/). It provides APIs for user management, course scheduling, attendance tracking, instructor management, and payment processing.
 
-## Description
+## 🚀 Features
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- **User Management**: Handle student and instructor accounts
+- **Course Management**: Create and manage swimming courses
+- **Attendance Tracking**: Monitor student attendance
+- **Instructor Requests**: Handle instructor applications and management
+- **Payment Processing**: Integrated with Stripe for secure payments
+- **Notifications**: System for important updates and alerts
+- **Resource Management**: Handle course materials and resources
 
-## Project setup
+## 🛠 Prerequisites
+
+- Node.js (v16 or later)
+- npm or yarn
+- PostgreSQL database
+- Prisma ORM
+- Firebase Admin SDK credentials (for authentication)
+- Stripe API keys (for payment processing)
+- Azure Blob Storage (for file storage)
+
+## 🚀 Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-username/seanior-backend.git
+   cd seanior-backend
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables**
+   Create a `.env` file in the root directory based on the `.env.example` file and fill in the required values.
+
+4. **Set up the database**
+   ```bash
+   # Apply database migrations
+   npx prisma migrate dev
+   
+   # Generate Prisma Client
+   npx prisma generate
+   ```
+
+## 🏃‍♂️ Running the App
 
 ```bash
-$ npm install
-```
-
-## Compile and run the project
-
-```bash
-# development
-$ npm run start
-
-# watch mode
+# Development mode with watch
 $ npm run start:dev
 
-# production mode
+# Production build
+$ npm run build
 $ npm run start:prod
+
+# Development server
+$ npm run start
 ```
 
-## Run tests
+## 🔧 Environment Variables
+
+Create a `.env` file in the root directory with the following variables:
+
+```env
+# App
+PORT=3000
+NODE_ENV=development
+
+# Database
+DATABASE_URL="postgresql://user:password@localhost:5432/seanior_db"
+
+# JWT
+JWT_SECRET=your_jwt_secret
+JWT_EXPIRES_IN=1d
+
+# Firebase
+FIREBASE_PROJECT_ID=your_project_id
+FIREBASE_PRIVATE_KEY=your_private_key
+FIREBASE_CLIENT_EMAIL=your_client_email
+
+# Stripe
+STRIPE_SECRET_KEY=your_stripe_secret_key
+STRIPE_WEBHOOK_SECRET=your_webhook_secret
+
+# Azure Storage
+AZURE_STORAGE_CONNECTION_STRING=your_azure_connection_string
+AZURE_STORAGE_CONTAINER=your_container_name
+```
+
+## 🧪 Testing
 
 ```bash
-# unit tests
+# Unit tests
 $ npm run test
+
+# E2E tests
+$ npm run test:e2e
+
+# Test coverage
+$ npm run test:cov
+```
+
+## 📚 API Documentation
+
+After starting the application, the API documentation will be available at:
+- Swagger UI: `http://localhost:3000/api`
+- JSON: `http://localhost:3000/api-json`
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [NestJS](https://nestjs.com/)
+- [Prisma](https://www.prisma.io/)
+- [Stripe](https://stripe.com/)
+- [Firebase](https://firebase.google.com/)
+- [Azure Blob Storage](https://azure.microsoft.com/en-us/services/storage/blobs/)
 
 # e2e tests
 $ npm run test:e2e
