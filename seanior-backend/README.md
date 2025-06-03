@@ -6,7 +6,7 @@
 
 ## 📝 Description
 
-Seanior is a comprehensive backend system for managing a swimming school, built with [NestJS](https://nestjs.com/). It provides APIs for user management, course scheduling, attendance tracking, instructor management, and payment processing.
+Seanior is a comprehensive backend system for managing a swimming learner and instructors , built with [NestJS](https://nestjs.com/). It provides APIs for user management, course scheduling, attendance tracking, instructor management, and payment processing.
 
 ## 🚀 Features
 
