@@ -100,4 +100,3 @@ After starting the application, the API documentation will be available at:
 - [Stripe](https://stripe.com/)
 - [Firebase](https://firebase.google.com/)
 - [Azure Blob Storage](https://azure.microsoft.com/en-us/services/storage/blobs/)
-```
